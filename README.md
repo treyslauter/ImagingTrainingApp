@@ -26,6 +26,8 @@ An interactive teaching app that shows how acquisition parameters change MRI, CT
 - Scenes: QA phantom, abdomen (right upper quadrant) and carotid (long axis).
 - Parameters: linear or curvilinear probe, frequency, depth, focus, focal zones, gain, 8-band TGC, dynamic range, output power, harmonics, spatial compounding.
 - Color Doppler: PRF, steering and color gain, showing angle dependence and aliasing.
+- Elastography: strain (relative, with the blue–green–red cyst artifact) and shear wave (kPa and m/s in a movable ROI, with a liver-fibrosis option).
+- 3D sweep: move the scan plane in elevation, or play a cine sweep, to see structures change across the volume.
 - Artifacts that come out of the physics: shadowing, enhancement, reverberation, mirror image, edge shadows.
 
 **Quiz mode** works in every modality, with three question types: identify the image (controls hidden), hands-on challenges with live checklists, and physics multiple choice.

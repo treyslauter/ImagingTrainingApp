@@ -14,6 +14,8 @@ const US = {
   harmonic: false, compound: false,
   stone: true, cyst: true, fluid: false, plaque: true,
   doppler: false, prf: 4, steer: 0, cgain: 50,
+  elasto: "off", fibrosis: false, roi: null,
+  elev: 0,
   marker: null,
 };
 const PROBES = {
@@ -75,16 +77,17 @@ const SCENES = {
       return P;
     })(),
     shapes: [
-      { type: "ell", x: 12, z: 50, a: 1.5, b: 1.5, t: "cystf" },
-      { type: "ell", x: 12, z: 62, a: 2.5, b: 2.5, t: "cystf" },
-      { type: "ell", x: 12, z: 77, a: 4, b: 4, t: "cystf" },
-      { type: "ell", x: 12, z: 94, a: 5, b: 5, t: "cystf" },
-      { type: "ell", x: -30, z: 120, a: 6, b: 6, t: "g12" },
-      { type: "ell", x: -10, z: 120, a: 6, b: 6, t: "g6" },
-      { type: "ell", x: 10, z: 120, a: 6, b: 6, t: "gm6" },
-      { type: "ell", x: 30, z: 120, a: 6, b: 6, t: "cystf" },
-      { type: "ell", x: -14, z: 14, a: 2, b: 2, t: "cystf" },
-      { type: "ell", x: -16, z: 70, a: 3, b: 3, t: "g12" },
+      { type: "ell", x: 12, z: 50, a: 1.5, b: 1.5, t: "cystf", ec: 50 },
+      { type: "ell", x: 12, z: 62, a: 2.5, b: 2.5, t: "cystf", ec: 50 },
+      { type: "ell", x: 12, z: 77, a: 4, b: 4, t: "cystf", ec: 50 },
+      { type: "ell", x: 12, z: 94, a: 5, b: 5, t: "cystf", ec: 50 },
+      { type: "ell", x: -30, z: 120, a: 6, b: 6, t: "g12", ec: 50 },
+      { type: "ell", x: -10, z: 120, a: 6, b: 6, t: "g6", ec: 50 },
+      { type: "ell", x: 10, z: 120, a: 6, b: 6, t: "gm6", ec: 50 },
+      { type: "ell", x: 30, z: 120, a: 6, b: 6, t: "cystf", ec: 50 },
+      { type: "ell", x: -14, z: 14, a: 2, b: 2, t: "cystf", ec: 50 },
+      { type: "ell", x: -16, z: 58, a: 5, b: 5, t: "incH", ec: 50 },
+      { type: "ell", x: -16, z: 76, a: 5, b: 5, t: "incS", ec: 50 },
     ],
     bg: () => "phant",
   },
@@ -92,22 +95,22 @@ const SCENES = {
     label: "Abdomen (RUQ, longitudinal)",
     points: [],
     shapes: [
-      { type: "ell", x: -55, z: 17, a: 8, b: 7, t: "bone", id: "rib" },
-      { type: "ell", x: 35, z: 122, a: 46, b: 24, r: 0.2, t: "prfat", id: "perirenal" },
-      { type: "ell", x: 35, z: 122, a: 40, b: 19, r: 0.2, t: "cortex", id: "kidney" },
-      { type: "ell", x: 22, z: 117, a: 6, b: 5, r: 0.2, t: "medulla" },
-      { type: "ell", x: 38, z: 113, a: 6, b: 5, r: 0.2, t: "medulla" },
-      { type: "ell", x: 52, z: 124, a: 6, b: 5, r: 0.2, t: "medulla" },
-      { type: "ell", x: 30, z: 132, a: 6, b: 5, r: 0.2, t: "medulla" },
-      { type: "ell", x: 36, z: 123, a: 17, b: 6, r: 0.2, t: "sinus" },
-      { type: "ell", x: 8, z: 60, a: 28, b: 14.5, r: -0.25, t: "wall", id: "gbwall" },
-      { type: "ell", x: 8, z: 60, a: 26.5, b: 13, r: -0.25, t: "bile", id: "gb" },
-      { type: "ell", x: 17, z: 66, a: 4.5, b: 4.5, t: "stone", id: "stone", opt: "stone" },
-      { type: "ell", x: -24, z: 82, a: 9, b: 6.5, t: "wall" },
-      { type: "ell", x: -24, z: 82, a: 7.8, b: 5.3, t: "blood", id: "pv", vel: [12, 0] },
+      { type: "ell", x: -55, z: 17, a: 8, b: 7, t: "bone", id: "rib", ec: 60 },
+      { type: "ell", x: 35, z: 122, a: 46, b: 24, r: 0.2, t: "prfat", id: "perirenal", ec: 34 },
+      { type: "ell", x: 35, z: 122, a: 40, b: 19, r: 0.2, t: "cortex", id: "kidney", ec: 28 },
+      { type: "ell", x: 22, z: 117, a: 6, b: 5, r: 0.2, t: "medulla", ec: 7, ey: -6 },
+      { type: "ell", x: 38, z: 113, a: 6, b: 5, r: 0.2, t: "medulla", ec: 7, ey: 5 },
+      { type: "ell", x: 52, z: 124, a: 6, b: 5, r: 0.2, t: "medulla", ec: 7, ey: -3 },
+      { type: "ell", x: 30, z: 132, a: 6, b: 5, r: 0.2, t: "medulla", ec: 7, ey: 8 },
+      { type: "ell", x: 36, z: 123, a: 17, b: 6, r: 0.2, t: "sinus", ec: 14 },
+      { type: "ell", x: 8, z: 60, a: 28, b: 14.5, r: -0.25, t: "wall", id: "gbwall", ec: 17 },
+      { type: "ell", x: 8, z: 60, a: 26.5, b: 13, r: -0.25, t: "bile", id: "gb", ec: 15.5 },
+      { type: "ell", x: 17, z: 66, a: 4.5, b: 4.5, t: "stone", id: "stone", opt: "stone", ec: 4.5, ey: 2 },
+      { type: "ell", x: -24, z: 82, a: 9, b: 6.5, t: "wall", ec: 60 },
+      { type: "ell", x: -24, z: 82, a: 7.8, b: 5.3, t: "blood", id: "pv", vel: [12, 0], ec: 60 },
       { type: "tube", x1: -70, z1: 40, x2: -40, z2: 112, rad: 3.6, t: "blood", vmax: 15 },
-      { type: "ell", x: -42, z: 42, a: 7, b: 7, t: "cystf", id: "cyst", opt: "cyst" },
-      { type: "ell", x: 70, z: 82, a: 10, b: 8, t: "air", id: "gas" },
+      { type: "ell", x: -42, z: 42, a: 7, b: 7, t: "cystf", id: "cyst", opt: "cyst", ec: 7, ey: -3 },
+      { type: "ell", x: 70, z: 82, a: 10, b: 8, t: "air", id: "gas", ec: 12, ey: 6 },
     ],
     bg: (x, z) => {
       if (z < 2) return "skin";
@@ -131,9 +134,9 @@ const SCENES = {
       { type: "tube", x1: -30, z1: 13.4, x2: 30, z2: 12.2, rad: 3.7, t: "blood", vmax: -28, id: "ijv" },
       { type: "tube", x1: -30, z1: 21, x2: 30, z2: 24.5, rad: 4.0, t: "wall" },
       { type: "tube", x1: -30, z1: 21, x2: 30, z2: 24.5, rad: 3.2, t: "blood", vmax: 90, id: "cca" },
-      { type: "ell", x: 6, z: 26.9, a: 4.5, b: 1.5, r: 0.06, t: "calc", id: "plaque", opt: "plaque" },
-      { type: "ell", x: -10, z: 36.5, a: 4, b: 2.4, t: "bone" },
-      { type: "ell", x: 14, z: 37.5, a: 4, b: 2.4, t: "bone" },
+      { type: "ell", x: 6, z: 26.9, a: 4.5, b: 1.5, r: 0.06, t: "calc", id: "plaque", opt: "plaque", ec: 3.5, ey: 1.5 },
+      { type: "ell", x: -10, z: 36.5, a: 4, b: 2.4, t: "bone", ec: 40 },
+      { type: "ell", x: 14, z: 37.5, a: 4, b: 2.4, t: "bone", ec: 40 },
     ],
     bg: (x, z) => {
       if (z < 1) return "skin";
@@ -145,6 +148,11 @@ const SCENES = {
   },
 };
 TISSUE.fat2 = { ech: -6, att: 0.6, Z: 1.42 };
+TISSUE.incH = { ech: 2, att: 0.5, Z: 1.56 };     // stiff elastography inclusion
+TISSUE.incS = { ech: -2, att: 0.5, Z: 1.55 };    // soft elastography inclusion
+const STIFF = { skin: 25, fat: 3, fat2: 3, muscle: 12, liver: 5.2, cortex: 10, medulla: 8, sinus: 6, prfat: 3, wall: 40, diaph: 15,
+  phant: 12, g12: 12, g6: 12, gm6: 12, incH: 48, incS: 4, bone: 300, stone: 300, calc: 250, air: null, lung: null, bile: null, cystf: null, blood: null };
+function stiffness(t) { if (t === "liver" && US.fibrosis) return 17; return STIFF[t] ?? null; }
 TISSUE.g12 = { ech: 12, att: 0.5, Z: 1.57 };
 TISSUE.g6 = { ech: 6, att: 0.5, Z: 1.56 };
 TISSUE.gm6 = { ech: -6, att: 0.5, Z: 1.55 };
@@ -152,14 +160,25 @@ TISSUE.gm6 = { ech: -6, att: 0.5, Z: 1.55 };
 function props(x, z) {
   const S = SCENES[US.scene];
   let t = S.bg(x, z), sh = null, vel = null;
+  const e = US.elev;
   for (const s of S.shapes) {
     if (s.opt && !US[s.opt]) continue;
+    const de = e - (s.ey || 0);
     if (s.type === "ell") {
-      if (Math.abs(x - s.x) > s.a + s.b || Math.abs(z - s.z) > s.a + s.b) continue;
-      if (ellSDF(x, z, s) <= 0) { t = s.t; sh = s; vel = s.vel || null; }
+      // 3D ellipsoid: its cross-section shrinks as the scan plane moves away from its centre
+      const ce = s.ec ?? Math.min(s.a, s.b);
+      if (Math.abs(de) >= ce) continue;
+      const k = Math.sqrt(1 - (de / ce) ** 2);
+      if (Math.abs(x - s.x) > (s.a + s.b) * k || Math.abs(z - s.z) > (s.a + s.b) * k) continue;
+      const c = Math.cos(s.r || 0), sn = Math.sin(s.r || 0), dx = x - s.x, dz = z - s.z;
+      const u = (dx * c + dz * sn) / (s.a * k), v = (-dx * sn + dz * c) / (s.b * k);
+      if (u * u + v * v <= 1) { t = s.t; sh = s; vel = s.vel || null; }
     } else {
-      const ti = tubeInfo(x, z, s);
-      if (ti.d <= s.rad) { t = s.t; sh = s; vel = s.vmax ? [s.vmax * (1 - (ti.d / s.rad) ** 2) * ti.ux, s.vmax * (1 - (ti.d / s.rad) ** 2) * ti.uz] : null; }
+      // tube (in-plane vessel): cylinder, so its visible radius shrinks off-axis
+      const rr = s.rad * s.rad - de * de;
+      if (rr <= 0) continue;
+      const r = Math.sqrt(rr), ti = tubeInfo(x, z, s);
+      if (ti.d <= r) { t = s.t; sh = s; const f = s.vmax ? s.vmax * (1 - (ti.d * ti.d + de * de) / (s.rad * s.rad)) : 0; vel = s.vmax ? [f * ti.ux, f * ti.uz] : null; }
     }
   }
   if (S.extra) { const e = S.extra(x, z); if (e) { t = e; sh = null; } }
@@ -201,7 +220,7 @@ function beamWidth(z) {  // lateral FWHM (mm) at depth z
   for (const zf of focalZones()) {
     const zfc = Math.max(4, zf);
     const wd = 1.02 * lam * Math.max(z, 2) / A;
-    const geo = A * Math.abs(1 - z / zfc) * 0.14;   // two-way, with dynamic receive focusing
+    const geo = A * Math.min(1.5, Math.abs(1 - z / zfc)) * 0.14;   // two-way, with dynamic receive focusing limiting divergence
     best = Math.min(best, Math.sqrt(wd * wd + geo * geo));
   }
   return best;
@@ -218,6 +237,14 @@ cv.width = OUT; cv.height = OUT;
 const off = document.createElement("canvas"); off.width = OUT; off.height = OUT;
 const offx = off.getContext("2d"), idata = offx.createImageData(OUT, OUT);
 
+// depth of the probe face below z = 0 at lateral position x (negative = above); 0 for the linear array
+function zface(x) {
+  if (US.probe !== "curved") return 0;
+  const P = PROBES.curved, R = P.radius, xe = R * Math.sin(P.angle * D2R / 2);
+  const xx = Math.min(Math.abs(x), xe);
+  return Math.sqrt(R * R - xx * xx) - R;
+}
+function aprops(x, z) { return props(x, z - zface(x)); }   // anatomy is defined relative to the skin under the probe
 function geometry() {
   const P = PROBES[US.probe];
   if (US.probe === "linear") {
@@ -226,7 +253,7 @@ function geometry() {
   }
   const R = P.radius, th = P.angle * D2R, D = US.depth;
   const x1 = (R + D) * Math.sin(th / 2);
-  return { R, th, D, box: { x0: -x1, x1, z0: 0, z1: R + D - R * Math.cos(th / 2) } };
+  return { R, th, D, box: { x0: -x1, x1, z0: R * Math.cos(th / 2) - R, z1: D } };
 }
 function lineRay(l, NL, G, phi) {   // origin and direction of scan line l
   if (US.probe === "linear") {
@@ -255,13 +282,13 @@ function frame(phi, seedShift) {
     for (let s = 0; s < NS; s++) {
       const d = (s + 0.5) * ds, x = ox + d * ux, z = oz + d * uz, k = l * NS + s;
       if (blocked) { ampAt[k] = 0; continue; }
-      const p = props(x, z), T = TISSUE[p.t];
+      const p = aprops(x, z), T = TISSUE[p.t];
       // interfaces: specular reflection and transmission loss
       if (prev && T.Z !== prev.Z) {
         const Rf = ((T.Z - prev.Z) / (T.Z + prev.Z)) ** 2;
         let cosI = 1;
         const shp = p.sh || prevSh;
-        if (shp) { const nrm = shapeNormal(shp, x, z); cosI = Math.abs(nrm[0] * ux + nrm[1] * uz); }
+        if (shp) { const nrm = shapeNormal(shp, x, z - zface(x)); cosI = Math.abs(nrm[0] * ux + nrm[1] * uz); }
         else if (T.mirror || prev.mirror || p.t === "diaph") cosI = 0.9;
         const a = Math.sqrt(Rf) * (0.25 + 0.75 * cosI * cosI) * Math.sqrt(Tint) * Math.pow(10, -attDB / 20) * 60 * powerF;
         const ph = scat(x * 0.37, z * 0.37);
@@ -295,7 +322,8 @@ function frame(phi, seedShift) {
   convLateral(re, NL, sigL); convLateral(im, NL, sigL);
   // point targets (wires): added as the point-spread function itself, peak amplitude set by the target
   const S = SCENES[US.scene];
-  for (const [px, pz, adb] of S.points) {
+  for (const [px, pz0, adb] of S.points) {
+    const pz = pz0 + zface(px);
     let lf, sf;
     if (US.probe === "linear") { lf = (px - pz * Math.tan(phi) - G.box.x0) / G.W * NL - 0.5; sf = pz / Math.cos(phi) / ds - 0.5; }
     else { const th = Math.atan2(px, pz + G.R); lf = (th + G.th / 2) / G.th * NL - 0.5; sf = (Math.hypot(px, pz + G.R) - G.R) / ds - 0.5; }
@@ -357,26 +385,40 @@ function convLateral(a, NL, sigL) {
 
 function render() {
   const P = PROBES[US.probe], G = geometry(), NL = P.lines, ds = US.depth / NS;
-  const angles = US.compound && US.probe === "linear" ? [-12 * D2R, 0, 12 * D2R] : [0];
+  const angles = US.compound ? [-12 * D2R, 0, 12 * D2R] : [0];
   let env = new Float32Array(NL * NS), sigRow = null;
+  const wsum = new Float32Array(NL * NS);
   for (let a = 0; a < angles.length; a++) {
-    const F = frame(angles[a], a * 0.07);
-    if (angles[a] === 0) { sigRow = F.sigRow; }
+    const phi = angles[a], F = frame(phi, a * 0.07);
+    if (phi === 0) { sigRow = F.sigRow; }
     if (angles.length === 1) { env = F.env; break; }
-    // resample a steered frame onto the unsteered line grid (linear array)
-    const t = Math.tan(angles[a]), c = Math.cos(angles[a]);
+    // resample each steered frame onto the unsteered line grid
+    const t = Math.tan(phi), c = Math.cos(phi);
     for (let l = 0; l < NL; l++) for (let s = 0; s < NS; s++) {
-      const x = G.box.x0 + (l + 0.5) / NL * G.W, z = (s + 0.5) * ds;
-      const lf = (x - z * t - G.box.x0) / G.W * NL - 0.5, sf = z / c / ds - 0.5;
+      const d0 = (s + 0.5) * ds;
+      let lf, sf;
+      if (US.probe === "linear") {
+        const x = G.box.x0 + (l + 0.5) / NL * G.W, z = d0;
+        lf = (x - z * t - G.box.x0) / G.W * NL - 0.5; sf = z / c / ds - 0.5;
+      } else {
+        // point on unsteered line l, then find the steered line (origin angle th) that passes through it
+        const R = G.R, th0 = -G.th / 2 + (l + 0.5) / NL * G.th;
+        const Px = (R + d0) * Math.sin(th0), Pz = (R + d0) * Math.cos(th0) - R;
+        const f = th => (Px - R * Math.sin(th)) * Math.cos(th + phi) - (Pz - R * Math.cos(th) + R) * Math.sin(th + phi);
+        let th = th0 - phi * d0 / (R + d0);
+        for (let it = 0; it < 3; it++) { const h = 1e-4, fp = (f(th + h) - f(th - h)) / (2 * h); if (Math.abs(fp) < 1e-9) break; th -= f(th) / fp; }
+        const dd = (Px - R * Math.sin(th)) * Math.sin(th + phi) + (Pz - R * Math.cos(th) + R) * Math.cos(th + phi);
+        lf = (th + G.th / 2) / G.th * NL - 0.5; sf = dd / ds - 0.5;
+      }
       const li = Math.floor(lf), si = Math.floor(sf);
-      let v = 0;
       if (li >= 0 && li < NL - 1 && si >= 0 && si < NS - 1) {
         const fl = lf - li, fs = sf - si, k = li * NS + si;
-        v = (F.env[k] * (1 - fl) + F.env[k + NS] * fl) * (1 - fs) + (F.env[k + 1] * (1 - fl) + F.env[k + NS + 1] * fl) * fs;
+        env[l * NS + s] += (F.env[k] * (1 - fl) + F.env[k + NS] * fl) * (1 - fs) + (F.env[k + 1] * (1 - fl) + F.env[k + NS + 1] * fl) * fs;
+        wsum[l * NS + s] += 1;
       }
-      env[l * NS + s] += v / angles.length;
     }
   }
+  if (angles.length > 1) for (let k = 0; k < env.length; k++) env[k] = wsum[k] ? env[k] / wsum[k] : 0;
   // receiver noise, gain, preset depth compensation + user TGC, log compression
   const noiseA = 0.0012;
   const dB = new Float32Array(NL * NS);
@@ -418,18 +460,46 @@ function colorBox() {
   if (US.scene === "abdomen") return { x0: -50, x1: 0, z0: 60, z1: 105 };
   return { x0: -15, x1: 15, z0: 20, z1: 60 };
 }
+function elastoBox() {
+  if (US.scene === "vascular") return { x0: -14, x1: 14, z0: 8, z1: 32 };
+  if (US.scene === "abdomen") return { x0: -48, x1: -4, z0: 30, z1: 78 };
+  return { x0: -27, x1: -5, z0: 48, z1: 88 };
+}
+function sweMaxDepth() { return US.probe === "linear" ? 45 : 85; }   // push-pulse penetration limit (mm)
+function sweScale() { return US.scene === "vascular" ? 100 : 40; }    // colour-bar maximum, kPa
+function jet(t) {   // blue (soft) -> cyan -> green -> yellow -> red (stiff)
+  t = Math.max(0, Math.min(1, t));
+  const r = Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 3))), g = Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 2))), b = Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 1)));
+  return [r * 255, g * 255, b * 255];
+}
+function strainColor(t) {   // t = 0 hard ... 1 soft: blue (hard) -> green -> red (soft)
+  t = Math.max(0, Math.min(1, t));
+  return t < 0.5 ? [0, 510 * t, 255 * (1 - 2 * t)] : [510 * (t - 0.5), 255 * (1 - 2 * (t - 0.5)) * 0.9 + 25, 0];
+}
 function nyquist() { return 1540 * US.prf * 1e3 / (4 * US.freq * 1e6) * 100; }  // Vn = c·PRF / (4 f0), in cm/s
 function draw() {
   const G = US.G, B = G.box, NL = US.NL, ds = US.depth / NS;
   const sc = Math.min(OUT / (B.x1 - B.x0), OUT / (B.z1 - B.z0));
   const offX = (OUT - (B.x1 - B.x0) * sc) / 2;
-  US.view = { sc, offX };
+  US.view = { sc, offX, z0: B.z0 };
   const d = idata.data, lo = -US.dr;
   const box = US.doppler ? colorBox() : null, vn = nyquist();
   const psi = US.probe === "linear" ? US.steer * D2R : 0;
   let colorPx = 0, aliasPx = 0, vesselPx = 0;
+  // elastography: strain needs the mean strain in the box first (it is a relative measurement)
+  const ebox = US.elasto !== "off" ? elastoBox() : null;
+  let strainRef = 1;
+  if (ebox && US.elasto === "strain") {
+    let sum = 0, n = 0;
+    for (let z = ebox.z0; z <= ebox.z1; z += 1.5) for (let x = ebox.x0; x <= ebox.x1; x += 1.5) {
+      const E = stiffness(props(x, z).t); if (E) { sum += Math.exp(-(z - ebox.z0) / 55) / E; n++; }
+    }
+    strainRef = n ? sum / n : 1;
+  }
+  if (ebox && !US.roi) US.roi = [(ebox.x0 + ebox.x1) / 2, (ebox.z0 + ebox.z1) / 2];
+  const roiVals = [];
   for (let py = 0; py < OUT; py++) for (let px = 0; px < OUT; px++) {
-    const x = B.x0 + (px + 0.5 - offX) / sc, z = (py + 0.5) / sc;
+    const x = B.x0 + (px + 0.5 - offX) / sc, z = B.z0 + (py + 0.5) / sc;
     const o = 4 * (py * OUT + px);
     let lf, sf;
     if (US.probe === "linear") { lf = (x - B.x0) / G.W * NL - 0.5; sf = z / ds - 0.5; }
@@ -440,8 +510,30 @@ function draw() {
     const v = (US.dB[k] * (1 - fl) + US.dB[k + NS] * fl) * (1 - fs) + (US.dB[k + 1] * (1 - fl) + US.dB[k + NS + 1] * fl) * fs;
     let g = (v - lo) / US.dr; g = g < 0 ? 0 : g > 1 ? 1 : g;
     let r = g * 255, gg = g * 255, b = g * 255;
-    if (box && z >= box.z0 && z <= box.z1 && x - z * Math.tan(psi) >= box.x0 && x - z * Math.tan(psi) <= box.x1) {
-      const p = props(x, z);
+    const za = z - zface(x);   // anatomy coordinate (depth below the skin)
+    if (ebox && za >= ebox.z0 && za <= ebox.z1 && x >= ebox.x0 && x <= ebox.x1) {
+      const p = props(x, za), E = stiffness(p.t);
+      const nz = (hash2(Math.floor(x / 2.5), Math.floor(za / 2.5), 11) - 0.5) * 2;    // smooth-ish estimation noise
+      let col = null;
+      if (US.elasto === "swe") {
+        // no shear waves in fluid, no estimate in shadows (no signal) or below the push-pulse depth limit
+        if (E && za <= sweMaxDepth() && g > 0.12 && !TISSUE[p.t].hard) {
+          const Em = E * (1 + nz * (0.08 + 0.12 * za / sweMaxDepth()));
+          col = jet(Em / sweScale());
+          if (US.roi && (x - US.roi[0]) ** 2 + (za - US.roi[1]) ** 2 <= 25) roiVals.push(Em);
+        }
+      } else {
+        if (E) {
+          const strain = Math.exp(-(za - ebox.z0) / 55) / E / strainRef;           // stress decays with depth
+          col = strainColor(0.5 + 0.42 * Math.log2(strain) / 2 + nz * 0.06);
+        } else if (p.sh && p.sh.type === "ell" && !TISSUE[p.t].blood) {
+          col = strainColor(0.5 + 0.5 * (za - p.sh.z) / p.sh.b);                    // blue–green–red (BGR) cyst artifact
+        }
+      }
+      if (col) { const al = 0.62; r = r * (1 - al) + col[0] * al; gg = gg * (1 - al) + col[1] * al; b = b * (1 - al) + col[2] * al; }
+    }
+    if (box && za >= box.z0 && za <= box.z1 && x - za * Math.tan(psi) >= box.x0 && x - za * Math.tan(psi) <= box.x1) {
+      const p = props(x, za);
       const noiseHit = hash2(px, py, 7);
       if (p.vel) {
         vesselPx++;
@@ -462,28 +554,49 @@ function draw() {
   }
   US.colorFill = vesselPx ? colorPx / vesselPx : 0;
   US.aliasFrac = colorPx ? aliasPx / colorPx : 0;
+  if (roiVals.length > 5) {
+    const m = roiVals.reduce((a, c) => a + c, 0) / roiVals.length;
+    US.roiE = m; US.roiSD = Math.sqrt(roiVals.reduce((a, c) => a + (c - m) ** 2, 0) / roiVals.length);
+  } else { US.roiE = null; US.roiSD = null; }
   offx.putImageData(idata, 0, 0);
   cx.drawImage(off, 0, 0);
+  const Y = z => (z - B.z0) * sc, X = x => offX + (x - B.x0) * sc;
   // overlays: depth scale, focus markers, color box, quiz marker
   cx.strokeStyle = "rgba(240,239,236,0.75)"; cx.fillStyle = "rgba(240,239,236,0.85)"; cx.font = "11px ui-monospace, Menlo, monospace"; cx.lineWidth = 1;
   const step = US.depth <= 50 ? 5 : US.depth <= 100 ? 10 : 20;
   for (let z = 0; z <= US.depth; z += step) {
-    const y = z * sc; cx.beginPath(); cx.moveTo(OUT - 10, y + .5); cx.lineTo(OUT - 2, y + .5); cx.stroke();
+    const y = Y(z); cx.beginPath(); cx.moveTo(OUT - 10, y + .5); cx.lineTo(OUT - 2, y + .5); cx.stroke();
     if (z % (step * 2) === 0 && z > 0) { cx.textAlign = "right"; cx.fillText(z / 10 + "", OUT - 13, y + 4); }
   }
   cx.fillStyle = "#f0b84a";
-  for (const zf of focalZones()) { const y = zf * sc; cx.beginPath(); cx.moveTo(OUT - 2, y); cx.lineTo(OUT - 10, y - 5); cx.lineTo(OUT - 10, y + 5); cx.fill(); }
+  for (const zf of focalZones()) { const y = Y(zf); cx.beginPath(); cx.moveTo(OUT - 2, y); cx.lineTo(OUT - 10, y - 5); cx.lineTo(OUT - 10, y + 5); cx.fill(); }
   if (box) {
     cx.strokeStyle = "rgba(240,239,236,0.8)"; cx.setLineDash([4, 3]);
-    const t = Math.tan(psi), P2 = (x, z) => [offX + (x - B.x0) * sc, z * sc];
+    const t = Math.tan(psi), P2 = (x, z) => [X(x), Y(z + zface(x))];
     const pts = [P2(box.x0 + box.z0 * t, box.z0), P2(box.x1 + box.z0 * t, box.z0), P2(box.x1 + box.z1 * t, box.z1), P2(box.x0 + box.z1 * t, box.z1)];
     cx.beginPath(); pts.forEach((p, i) => i ? cx.lineTo(p[0], p[1]) : cx.moveTo(p[0], p[1])); cx.closePath(); cx.stroke(); cx.setLineDash([]);
   }
+  if (ebox) {
+    cx.strokeStyle = "rgba(240,239,236,0.85)"; cx.setLineDash([4, 3]); cx.lineWidth = 1;
+    cx.beginPath();
+    [[ebox.x0, ebox.z0], [ebox.x1, ebox.z0], [ebox.x1, ebox.z1], [ebox.x0, ebox.z1]].forEach(([x, z], i) => { const px = X(x), py = Y(z + zface(x)); i ? cx.lineTo(px, py) : cx.moveTo(px, py); });
+    cx.closePath(); cx.stroke(); cx.setLineDash([]);
+    if (US.elasto === "swe" && US.roi) { cx.strokeStyle = "#ffffff"; cx.lineWidth = 1.5; cx.beginPath(); cx.arc(X(US.roi[0]), Y(US.roi[1] + zface(US.roi[0])), 5 * sc, 0, 7); cx.stroke(); }
+    // colour bar
+    const bx = 14, by = OUT - 190, bh = 120;
+    for (let i = 0; i < bh; i++) {
+      const t = 1 - i / bh, c = US.elasto === "swe" ? jet(t) : strainColor(1 - t);
+      cx.fillStyle = `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; cx.fillRect(bx, by + i, 10, 1.5);
+    }
+    cx.fillStyle = "#f0efec"; cx.textAlign = "left"; cx.font = "11px ui-monospace, Menlo, monospace";
+    if (US.elasto === "swe") { cx.fillText(sweScale() + " kPa", bx + 14, by + 8); cx.fillText("0", bx + 14, by + bh); }
+    else { cx.fillText("HARD", bx + 14, by + 8); cx.fillText("SOFT", bx + 14, by + bh); }
+  }
   if (US.marker) {
-    const [mx, mz] = US.marker, X = offX + (mx - B.x0) * sc, Y = mz * sc;
+    const [mx, mz] = US.marker, MX = X(mx), MY = Y(mz + zface(mx));
     cx.strokeStyle = "#ffd84a"; cx.fillStyle = "#ffd84a"; cx.lineWidth = 2.5;
-    cx.beginPath(); cx.moveTo(X - 34, Y - 34); cx.lineTo(X - 9, Y - 9); cx.stroke();
-    cx.beginPath(); cx.moveTo(X - 6, Y - 6); cx.lineTo(X - 18, Y - 10); cx.lineTo(X - 10, Y - 18); cx.closePath(); cx.fill();
+    cx.beginPath(); cx.moveTo(MX - 34, MY - 34); cx.lineTo(MX - 9, MY - 9); cx.stroke();
+    cx.beginPath(); cx.moveTo(MX - 6, MY - 6); cx.lineTo(MX - 18, MY - 10); cx.lineTo(MX - 10, MY - 18); cx.closePath(); cx.fill();
   }
 }
 
@@ -491,12 +604,14 @@ function draw() {
 function frameRate() {
   const P = PROBES[US.probe];
   const tLine = 2 * US.depth / C;                       // µs per line per focal zone
-  let t = tLine * P.lines * US.zones * (US.compound && US.probe === "linear" ? 3 : 1);
+  let t = tLine * P.lines * US.zones * (US.compound ? 3 : 1);
   if (US.doppler) { const b = colorBox(); const frac = Math.min(1, (b.x1 - b.x0) / (US.probe === "linear" ? P.width : 2 * (P.radius + US.depth) * Math.sin(P.angle * D2R / 2))); t += 2 * US.depth / C * P.lines * frac * 10; }
-  return 1e6 / t;
+  let fr = 1e6 / t;
+  if (US.elasto === "swe") fr = Math.min(fr, 1.5);      // push pulses + shear-wave tracking
+  return fr;
 }
 function mechIndex() { return (1.6 + 0.12 * US.freq) * US.power / 100 / Math.sqrt(US.freq) * (US.harmonic ? 1.05 : 1); }
-function thermIndex() { return (US.power / 100) * (0.25 + 0.06 * US.freq) * (US.doppler ? 1.8 : 1); }
+function thermIndex() { return (US.power / 100) * (0.25 + 0.06 * US.freq) * (US.doppler ? 1.8 : 1) * (US.elasto === "swe" ? 1.6 : 1); }
 function vesselAngle() {   // Doppler angle at the CCA centre (vascular scene)
   const s = SCENES.vascular.shapes.find(q => q.id === "cca");
   const ux = s.x2 - s.x1, uz = s.z2 - s.z1, L = Math.hypot(ux, uz);
@@ -510,14 +625,28 @@ function info() {
   US.fr = fr; US.MI = MI;
   const lat = beamWidth(US.focus), ax = axialRes();
   US.latRes = lat; US.axRes = ax;
-  $("usFR").textContent = fr.toFixed(0) + " Hz";
+  $("usFR").textContent = (fr < 10 ? fr.toFixed(1) : fr.toFixed(0)) + " Hz";
   $("usAx").textContent = ax.toFixed(2) + " mm";
   $("usLat").textContent = lat.toFixed(2) + " mm";
   $("usLatS").textContent = `at the focus (${(US.focus / 10).toFixed(1)} cm)`;
   $("usMI").textContent = `${MI.toFixed(2)} / ${TI.toFixed(1)}`;
   $("usTL").textContent = `${PROBES[US.probe].label}  ${US.freq.toFixed(1)} MHz${US.harmonic ? " THI" : ""}\nDepth ${(US.depth / 10).toFixed(1)} cm  Gain ${US.gain >= 0 ? "+" : ""}${US.gain} dB\nDR ${US.dr} dB  Power ${US.power}%`;
-  $("usTR").textContent = `MI ${MI.toFixed(2)}  TIS ${TI.toFixed(1)}\n${fr.toFixed(0)} Hz${US.compound && US.probe === "linear" ? "  Compound" : ""}`;
-  $("usBL").textContent = SCENES[US.scene].label;
+  $("usTR").textContent = `MI ${MI.toFixed(2)}  TIS ${TI.toFixed(1)}\n${fr < 10 ? fr.toFixed(1) : fr.toFixed(0)} Hz${US.compound ? "  Compound" : ""}${US.elasto !== "off" ? (US.elasto === "swe" ? "  SWE" : "  Strain") : ""}`;
+  $("usBL").textContent = SCENES[US.scene].label + (US.elev ? `\nElevation ${US.elev > 0 ? "+" : ""}${US.elev} mm` : "");
+  const el = $("usElas");
+  if (US.elasto === "swe") {
+    const E = US.roiE;
+    let h = `<tr><th>Shear-wave ROI (1 cm)</th><th>Value</th></tr>`;
+    if (E != null) {
+      const cs = Math.sqrt(E / 3);
+      const stage = E < 7 ? "normal range (F0–F1)" : E < 9.5 ? "significant fibrosis range (≥F2)" : E < 12.5 ? "advanced fibrosis range (≥F3)" : "cirrhosis range (F4)";
+      h += `<tr><td>Young's modulus E</td><td>${E.toFixed(1)} ± ${US.roiSD.toFixed(1)} kPa</td></tr><tr><td>Shear-wave speed c = √(E / 3ρ)</td><td>${cs.toFixed(2)} m/s</td></tr>`;
+      if (US.scene === "abdomen") h += `<tr><td>Liver stiffness (typical cut-offs)</td><td>${stage}</td></tr>`;
+    } else h += `<tr><td colspan="2" style="color:var(--text-muted)">No valid measurement in the ROI (fluid, shadow, or too deep). Click inside the box to move it.</td></tr>`;
+    el.innerHTML = h;
+  } else if (US.elasto === "strain") {
+    el.innerHTML = `<tr><td style="color:var(--text-secondary)">Strain elastography is relative: colors compare tissues inside the box with each other. There are no absolute kPa values.</td></tr>`;
+  } else el.innerHTML = `<tr><td style="color:var(--text-muted)">Choose strain or shear-wave elastography to see stiffness.</td></tr>`;
   // Doppler panel
   const dp = $("usDop");
   if (US.doppler) {
@@ -555,12 +684,14 @@ function info() {
       notes.push("Color convention (BART): blue = away, red = toward the transducer. Color shows direction relative to the beam, not artery vs vein.");
     }
   }
+  if (US.elasto === "strain") notes.push("<b>Strain elastography:</b> the tissue is compressed, and soft tissue deforms more than stiff tissue (red = soft, blue = hard). It's relative: the colors only compare tissues inside the box, and applied stress fades with depth, so deep tissue can look falsely stiff." + (US.scene === "phantom" ? " The stiff inclusion appears blue and the soft one red." : "") + (US.cyst || US.scene === "phantom" ? " Simple cysts show the layered <b>blue–green–red (BGR) artifact</b>, which is a sign of fluid." : "") + (US.fibrosis ? " Diffuse fibrosis stiffens the whole liver evenly, so strain can't show it. Use shear-wave elastography." : ""));
+  if (US.elasto === "swe") notes.push(`<b>Shear-wave elastography:</b> a focused push pulse launches shear waves, and their speed is tracked. Stiffness E = 3ρc² (kPa). Fluid doesn't carry shear waves, so cysts and vessels show no color, and neither do shadows. Measurements are unreliable below about ${(sweMaxDepth() / 10).toFixed(1)} cm. Frame rate drops to about 1 Hz.` + (US.scene === "abdomen" ? (US.fibrosis ? " This liver is stiff (fibrosis/cirrhosis)." : " Normal liver is about 5 kPa (shear-wave speed about 1.3 m/s).") + " Measure in the right lobe, 1–2 cm below the capsule, away from vessels." : ""));
+  if (US.elev) notes.push(`The scan plane is ${Math.abs(US.elev)} mm ${US.elev > 0 ? "to one side of" : "to the other side of"} the central plane. Round structures look smaller off-center, and a long-axis vessel looks narrower than it really is when the plane cuts it off-axis.`);
   if (US.penetration < US.depth * 0.95) notes.push(`Signal drops into the noise below about ${(US.penetration / 10).toFixed(1)} cm. Attenuation ≈ 0.5 dB/cm/MHz, so lower frequencies penetrate deeper, at the cost of resolution.`);
   if (US.freq >= 10) notes.push(`At ${US.freq} MHz the wavelength is only ${lambda().toFixed(2)} mm, which gives excellent resolution but shallow penetration. That's ideal for superficial structures.`);
   if (US.zones > 1) notes.push(`${US.zones} focal zones keep the beam narrow over a longer depth range, but each line has to be fired ${US.zones} times, so frame rate drops.`);
   if (US.harmonic) notes.push("Tissue harmonic imaging forms the image from the 2nd harmonic generated in tissue. The beam is narrower, and there's less reverberation and near-field clutter, but less penetration.");
-  if (US.compound && US.probe === "linear") notes.push("Spatial compounding averages frames steered at different angles. Speckle is smoother and edges are better defined, but shadowing and enhancement are reduced (which can hide a small stone) and frame rate falls.");
-  if (US.compound && US.probe !== "linear") notes.push("Spatial compounding is simulated for the linear array only.");
+  if (US.compound) notes.push("Spatial compounding averages frames steered at different angles. Speckle is smoother and edges are better defined, but shadowing and enhancement are reduced (which can hide a small stone) and frame rate falls.");
   if (US.gain > 12) notes.push("Overall gain is high: the image is bright, and noise and clutter appear in fluid-filled structures.");
   if (US.gain < -12) notes.push("Overall gain is low: weak echoes from soft tissue disappear.");
   if (Math.max(...US.tgc) - Math.min(...US.tgc) > 12) notes.push("Uneven TGC makes bright and dark bands at different depths. Set the TGC so the same tissue looks uniform from top to bottom.");
@@ -611,7 +742,9 @@ function syncUI() {
   document.querySelectorAll("#usProbe button").forEach(b => b.classList.toggle("on", b.dataset.v === US.probe));
   document.querySelectorAll("#usZones button").forEach(b => b.classList.toggle("on", +b.dataset.v === US.zones));
   document.querySelectorAll("#usSteer button").forEach(b => b.classList.toggle("on", +b.dataset.v === US.steer));
-  ["harmonic", "compound", "stone", "cyst", "fluid", "plaque", "doppler"].forEach(k => { const e = $("us_" + k); if (e) e.checked = US[k]; });
+  ["harmonic", "compound", "stone", "cyst", "fluid", "plaque", "doppler", "fibrosis"].forEach(k => { const e = $("us_" + k); if (e) e.checked = US[k]; });
+  document.querySelectorAll("#usElasto button").forEach(b => b.classList.toggle("on", b.dataset.v === US.elasto));
+  $("usELEV").value = US.elev; $("o_usELEV").textContent = (US.elev > 0 ? "+" : "") + US.elev + " mm";
   document.querySelectorAll(".usopt").forEach(e => e.style.display = e.dataset.scene === US.scene ? "" : "none");
   $("usSteerRow").style.display = US.probe === "linear" ? "" : "none";
   document.querySelectorAll("#usTGC input").forEach((e, i) => { e.value = US.tgc[i]; });
@@ -627,7 +760,7 @@ for (const [id, [key]] of Object.entries(sliders)) $(id).addEventListener("input
 function seg(id, cb) { document.querySelectorAll(`#${id} button`).forEach(b => b.addEventListener("click", () => { cb(b.dataset.v); changed(); })); }
 function setScene(s) {
   US.scene = s; Object.assign(US, SCENE_DEFAULTS[s]);
-  US.doppler = false; US.steer = 0; US.marker = null;
+  US.doppler = false; US.steer = 0; US.marker = null; US.elasto = "off"; US.roi = null; US.elev = 0;
 }
 seg("usScene", v => setScene(v));
 seg("usProbe", v => {
@@ -637,7 +770,27 @@ seg("usProbe", v => {
 });
 seg("usZones", v => { US.zones = +v; });
 seg("usSteer", v => { US.steer = +v; });
-["harmonic", "compound", "stone", "cyst", "fluid", "plaque", "doppler"].forEach(k => { const e = $("us_" + k); if (e) e.addEventListener("change", () => { US[k] = e.checked; changed(); }); });
+["harmonic", "compound", "stone", "cyst", "fluid", "plaque", "doppler", "fibrosis"].forEach(k => { const e = $("us_" + k); if (e) e.addEventListener("change", () => { US[k] = e.checked; if (k === "doppler" && US.doppler) US.elasto = "off"; changed(); }); });
+seg("usElasto", v => { US.elasto = v; US.roi = null; if (v !== "off") US.doppler = false; });
+$("usELEV").addEventListener("input", e => { US.elev = parseFloat(e.target.value); stopSweep(); changed(); });
+let sweepOn = false, sweepDir = 1;
+function stopSweep() { sweepOn = false; $("usSweep").textContent = "▶ Sweep"; }
+function sweepStep() {
+  if (!sweepOn || document.body.dataset.mod !== "us") { stopSweep(); return; }
+  let e = US.elev + 2 * sweepDir;
+  if (e > 24 || e < -24) { sweepDir = -sweepDir; e = US.elev + 2 * sweepDir; }
+  US.elev = e; syncUI(); render();
+  setTimeout(() => requestAnimationFrame(sweepStep), 30);
+}
+$("usSweep").addEventListener("click", () => { if (sweepOn) stopSweep(); else { sweepOn = true; $("usSweep").textContent = "■ Stop"; sweepStep(); } });
+cv.addEventListener("click", e => {   // move the shear-wave ROI
+  if (US.elasto !== "swe" || !US.view) return;
+  const r = cv.getBoundingClientRect(), V = US.view, B = US.G.box;
+  const x = B.x0 + ((e.clientX - r.left) / r.width * OUT - V.offX) / V.sc, z = B.z0 + (e.clientY - r.top) / r.height * OUT / V.sc;
+  const eb = elastoBox(), za = z - zface(x);
+  if (x < eb.x0 || x > eb.x1 || za < eb.z0 || za > eb.z1) return;
+  US.roi = [x, za]; update();
+});
 const tgcBox = $("usTGC");
 for (let i = 0; i < 8; i++) {
   const inp = document.createElement("input"); inp.type = "range"; inp.min = -20; inp.max = 20; inp.step = 1; inp.value = 0;
@@ -655,7 +808,7 @@ window.addEventListener("resize", () => { if (document.body.dataset.mod === "us"
 
 window.USIM = {
   US, update, changed, setScene, syncUI,
-  defaults: () => ({ scene: "abdomen", probe: "curved", freq: 3.5, depth: 160, focus: 90, zones: 1, gain: 0, tgc: [0, 0, 0, 0, 0, 0, 0, 0], dr: 60, power: 100, harmonic: false, compound: false, stone: true, cyst: true, fluid: false, plaque: true, doppler: false, prf: 4, steer: 0, cgain: 50, marker: null }),
+  defaults: () => ({ scene: "abdomen", probe: "curved", freq: 3.5, depth: 160, focus: 90, zones: 1, gain: 0, tgc: [0, 0, 0, 0, 0, 0, 0, 0], dr: 60, power: 100, harmonic: false, compound: false, stone: true, cyst: true, fluid: false, plaque: true, doppler: false, prf: 4, steer: 0, cgain: 50, elasto: "off", fibrosis: false, roi: null, elev: 0, marker: null }),
   nyquist, vesselAngle, beamWidth, frameRate, props,
 };
 document.querySelectorAll("#modality button").forEach(b => b.addEventListener("click", () => { if (b.dataset.v === "us") { syncUI(); update(); } }));

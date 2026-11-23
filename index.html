@@ -526,6 +526,10 @@ Click to add a spike.</div>
       <div class="seg" id="usScene"><button data-v="phantom">QA phantom</button><button data-v="abdomen" class="on">Abdomen</button><button data-v="vascular">Vascular</button></div>
       <h2 style="margin-top:14px">Transducer</h2>
       <div class="seg" id="usProbe"><button data-v="linear">Linear</button><button data-v="curved" class="on">Curvilinear</button></div>
+      <div class="row" style="margin-top:12px"><label>Probe position (elevation sweep) <output id="o_usELEV"></output></label><input type="range" id="usELEV" min="-24" max="24" step="1" value="0">
+        <div class="btn-row"><button class="btn" id="usSweep">▶ Sweep</button></div>
+        <div class="tip">Slide the scan plane through the 3D anatomy, or play a cine sweep.</div>
+      </div>
     </div>
     <div class="panel">
       <h2>Imaging</h2>
@@ -556,12 +560,18 @@ Click to add a spike.</div>
       <div class="row"><label>Color gain <output id="o_usCGAIN"></output></label><input type="range" id="usCGAIN" min="0" max="100" step="5"></div>
     </div>
     <div class="panel">
+      <h2>Elastography</h2>
+      <div class="seg" id="usElasto"><button data-v="off" class="on">Off</button><button data-v="strain">Strain</button><button data-v="swe">Shear wave</button></div>
+      <label class="check usopt" data-scene="abdomen" style="margin-top:8px"><input type="checkbox" id="us_fibrosis"> Liver fibrosis / cirrhosis</label>
+      <div class="tip" style="margin-top:6px">Shear wave: click inside the box to move the 1 cm measurement ROI.</div>
+    </div>
+    <div class="panel">
       <h2>Findings</h2>
       <label class="check usopt" data-scene="abdomen"><input type="checkbox" id="us_stone"> Gallstone</label>
       <label class="check usopt" data-scene="abdomen"><input type="checkbox" id="us_cyst"> Liver cyst</label>
       <label class="check usopt" data-scene="abdomen"><input type="checkbox" id="us_fluid"> Free fluid (Morison's pouch)</label>
       <label class="check usopt" data-scene="vascular"><input type="checkbox" id="us_plaque"> Calcified plaque</label>
-      <div class="tip usopt" data-scene="phantom">The phantom has wire targets for resolution, anechoic cysts and gray-scale targets.</div>
+      <div class="tip usopt" data-scene="phantom">The phantom has wire targets for resolution, anechoic cysts, gray-scale targets, and a stiff and a soft elastography inclusion (left).</div>
     </div>
   </div>
   <div class="center">
@@ -584,6 +594,11 @@ Click to add a spike.</div>
       <div class="tip" style="margin-top:6px">Lateral beam width (FWHM) vs depth. The beam converges to its narrowest point at each focal zone (yellow markers) and diverges beyond. Lateral resolution equals the beam width, so put the focus at the structure of interest.</div>
     </div>
     <div class="panel">
+      <h2>Elastography</h2>
+      <table id="usElas"></table>
+      <div class="tip" style="margin-top:6px">Shear-wave speed c relates to stiffness by E = 3ρc² (ρ ≈ 1000 kg/m³). Typical values: normal liver ≈ 5 kPa, cirrhosis > 12.5 kPa, fluid has no shear waves.</div>
+    </div>
+    <div class="panel">
       <h2>Doppler</h2>
       <table id="usDop"></table>
       <div class="tip" style="margin-top:6px">Δf = 2 f₀ v cos θ / c. Nyquist limit: v = c · PRF / (4 f₀).</div>
@@ -594,7 +609,9 @@ Click to add a spike.</div>
       <p><b>Beam:</b> each scan line accumulates two-way attenuation. Interfaces reflect R = ((Z₂ − Z₁)/(Z₂ + Z₁))², depending on the angle, and pass the rest. The echoes are blurred by a point-spread function: axial = half the pulse length, lateral = beam width, which depends on frequency, aperture and focus.</p>
       <p><b>Artifacts from the physics:</b> shadowing behind strongly attenuating or reflecting objects, enhancement behind fluid, reverberation behind gas, mirror images from the lung, and edge shadows at grazing incidence.</p>
       <p><b>Display:</b> receiver noise, gain, a preset depth compensation plus your TGC, then log compression to the chosen dynamic range. Color Doppler maps v·cos θ, which wraps above the Nyquist limit.</p>
-      <p><b>Simplified:</b> 2D, anatomy drawn as simple shapes, no side lobes or speed-of-sound errors, static flow (no pulsatility or spectral Doppler). MI and TI are illustrative.</p>
+      <p><b>3D sweep:</b> structures are ellipsoids and cylinders, so moving the scan plane in elevation changes their cross-sections.</p>
+      <p><b>Elastography:</b> each tissue has a Young's modulus. Strain is shown relative to the box mean, with stress decaying with depth. Shear wave shows E with estimation noise and no values in fluid, shadows, or below the push-pulse depth.</p>
+      <p><b>Simplified:</b> anatomy drawn as simple shapes, no side lobes or speed-of-sound errors, static flow (no pulsatility or spectral Doppler). MI and TI are illustrative.</p>
     </div>
   </div>
 </div></div>
