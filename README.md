@@ -1,6 +1,6 @@
 # Radiology Physics Simulator
 
-An interactive teaching app that shows how acquisition parameters change MRI, CT and X-ray images. Every image is recalculated live in the browser from real anatomy, so a change to TR, kVp, mAs or any other setting shows its effect immediately.
+An interactive teaching app that shows how acquisition parameters change MRI, CT, X-ray and ultrasound images. Every image is recalculated live in the browser from real anatomy, so a change to TR, kVp, mAs or any other setting shows its effect immediately.
 
 ## Modalities
 
@@ -22,6 +22,14 @@ An interactive teaching app that shows how acquisition parameters change MRI, CT
 - Image receptor: digital processing or screen-film.
 - Readouts: exposure index and deviation index, entrance dose, effective dose, spectrum plot, scatter and magnification.
 
+**Ultrasound.** A B-mode simulation computed from tissue acoustic properties (backscatter, attenuation, impedance) with speckle, a depth-dependent beam profile and interface reflections.
+- Scenes: QA phantom, abdomen (right upper quadrant) and carotid (long axis).
+- Parameters: linear or curvilinear probe, frequency, depth, focus, focal zones, gain, 8-band TGC, dynamic range, output power, harmonics, spatial compounding.
+- Color Doppler: PRF, steering and color gain, showing angle dependence and aliasing.
+- Artifacts that come out of the physics: shadowing, enhancement, reverberation, mirror image, edge shadows.
+
+**Quiz mode** works in every modality, with three question types: identify the image (controls hidden), hands-on challenges with live checklists, and physics multiple choice.
+
 ## Running it
 
 It is a static site with no build step. The page loads its data files with `fetch`, so serve the folder over HTTP rather than opening `index.html` directly:
@@ -38,6 +46,8 @@ Then open http://localhost:8000. Any static host works (GitHub Pages, Netlify, e
 |---|---|
 | `index.html` | Page, styles and the MRI simulator |
 | `ctxr.js` | CT and X-ray simulators |
+| `us.js` | Ultrasound simulator |
+| `quiz2.js` | Quiz mode for CT, X-ray and ultrasound |
 | `phantom.json`, `phantom.b64.txt` | MRI tissue fractions (GM, WM, CSF, fat, bone, muscle) in 3 mm axial slabs |
 | `chest_ct.json`, `chest_ct.b64.txt` | Chest CT in HU (int16), 1.64 × 1.64 × 2 mm |
 | `head_ct.json`, `head_ct.b64.txt` | Head CT in HU (int16), 0.86 × 0.86 × 2.5 mm |
@@ -75,7 +85,7 @@ python tools/build_ct.py data_raw/MED_LYMPH_054 data_raw/EAY131-368292 .
 - **Head CT:** The Cancer Imaging Archive, NCI-MATCH EAY131 collection, case EAY131-368292. CC BY 4.0.
 - TCIA: Clark K et al., "The Cancer Imaging Archive (TCIA): Maintaining and Operating a Public Information Repository", J Digit Imaging 2013. Data accessed through the NCI Imaging Data Commons.
 
-The CT data was downsampled, denoised and stripped of the scanner table. Lesions and implants in the app are simulated.
+The CT data was downsampled, denoised and stripped of the scanner table. Lesions, implants and the ultrasound scenes are simulated.
 
 ## Limitations
 
@@ -83,6 +93,7 @@ This app is a teaching model, not a scanner simulation.
 - **MRI:** uses closed-form signal equations, so FSE blurring, magnetization transfer, B1 effects, flow and susceptibility are not modeled.
 - **CT:** uses a parallel beam, and "iterative" is an edge-preserving denoising stand-in.
 - **X-ray:** scatter is an analytic approximation. The chest CT patient had their arms raised.
+- **Ultrasound:** 2D only, with schematic anatomy. No side lobes, speed-of-sound errors, pulsatile flow or spectral Doppler.
 - **Dose:** values are typical figures for illustration.
 
 For education only. Not for clinical use.

@@ -105,7 +105,11 @@
   .qchecks li.ok::before { content: "✓"; color: #0ca30c; }
   .qchecks li .now { color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: auto; font-size: 12px; white-space: nowrap; }
   #qFeedback { margin-top: 10px; padding: 10px 12px; border-radius: 6px; background: var(--surface-2); color: var(--text-secondary); display: none; }
-  #qFeedback.show { display: block; }
+  #qFeedback.show, #gqFeedback.show { display: block; }
+  #gqFeedback { margin-top: 10px; padding: 10px 12px; border-radius: 6px; background: var(--surface-2); color: var(--text-secondary); display: none; }
+  #gqFeedback b.good { color: #4fd14f; } #gqFeedback b.bad { color: #ff8a8a; }
+  #gqText { font-size: 14px; line-height: 1.45; margin: 4px 0 10px; }
+  #gqText small { display: block; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
   #qFeedback b.good { color: #4fd14f; } #qFeedback b.bad { color: #ff8a8a; }
   .qactions { display: flex; gap: 6px; margin-top: 10px; justify-content: flex-end; }
   .qactions .btn { text-align: center; }
@@ -122,10 +126,18 @@
   .modseg { min-width: 220px; }
   .modseg button { font-weight: 600; }
   .mod { display: none; }
-  body[data-mod="mri"] #mod-mri, body[data-mod="ct"] #mod-ct, body[data-mod="xr"] #mod-xr { display: block; }
+  body[data-mod="mri"] #mod-mri, body[data-mod="ct"] #mod-ct, body[data-mod="xr"] #mod-xr, body[data-mod="us"] #mod-us { display: block; }
   .modtxt { display: none; }
-  body[data-mod="mri"] .modtxt[data-for="mri"], body[data-mod="ct"] .modtxt[data-for="ct"], body[data-mod="xr"] .modtxt[data-for="xr"] { display: block; }
-  body:not([data-mod="mri"]) #quizBtn { display: none; }
+  body[data-mod="mri"] .modtxt[data-for="mri"], body[data-mod="ct"] .modtxt[data-for="ct"], body[data-mod="xr"] .modtxt[data-for="xr"], body[data-mod="us"] .modtxt[data-for="us"] { display: block; }
+  .modseg { min-width: 300px; }
+  #gqPanel { display: none; border-color: #3987e5; margin-bottom: 12px; }
+  body.gqhide .mod .left > .panel, body.gqhide .mod .right, body.gqhide .mod .stats, body.gqhide .mod .weight, body.gqhide #kpanel { display: none; }
+  body.gqhide .mod .ov.tl, body.gqhide .mod .ov.tr, body.gqhide .mod .ov.br { visibility: hidden; }
+  body.gqhide .mod .left::before { content: "Controls and readouts are hidden until you answer. Look at the image and decide."; display: block; color: var(--text-muted); text-align: center; padding: 30px 14px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; }
+  #usImg { display: block; width: 100%; aspect-ratio: 1; }
+  #usTGC { display: grid; grid-template-columns: 1fr; gap: 2px; }
+  #usTGC input { margin: 0; }
+  .tgclab { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 11px; }
   .chip { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; }
   .chip.good { background: rgba(12,163,12,0.2); color: #6fdc6f; } .chip.warn { background: rgba(201,133,0,0.22); color: #f0b84a; } .chip.bad { background: rgba(230,103,103,0.2); color: #ff9a9a; }
   .busy { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(26,26,25,0.85); color: var(--text-secondary); font-size: 11px; padding: 3px 9px; border-radius: 99px; pointer-events: none; }
@@ -169,13 +181,32 @@
 <body data-mod="mri">
 <header>
   <h1>Radiology Physics Simulator</h1>
-  <div class="seg modseg" id="modality"><button data-v="mri" class="on">MRI</button><button data-v="ct">CT</button><button data-v="xr">X-ray</button></div>
+  <div class="seg modseg" id="modality"><button data-v="mri" class="on">MRI</button><button data-v="ct">CT</button><button data-v="xr">X-ray</button><button data-v="us">Ultrasound</button></div>
   <p class="modtxt" data-for="mri">Real head anatomy from the ICBM152 template, an average of 152 healthy adult brains. Every pixel is recalculated from tissue T1, T2, T2* and proton density whenever you change a setting.</p>
   <p class="modtxt" data-for="ct">Real patient CT data, re-projected and reconstructed live: X-ray spectrum → projections → photon noise → filtered backprojection.</p>
+  <p class="modtxt" data-for="us">B-mode ultrasound simulated from tissue acoustic properties: speckle, beam focusing, attenuation, interfaces and color Doppler, with artifacts that arise from the physics.</p>
   <p class="modtxt" data-for="xr">A chest radiograph computed by projecting X-rays through a real patient CT, with spectrum, scatter, grid, detector noise and image processing.</p>
   <button id="quizBtn">Quiz mode</button>
 </header>
 
+<div class="panel" id="gqPanel">
+  <div class="qhead">
+    <div class="seg" id="gqCat">
+      <button data-v="mixed" class="on">Mixed</button>
+      <button data-v="identify">Identify</button>
+      <button data-v="chal">Challenges</button>
+      <button data-v="phys">Physics</button>
+    </div>
+    <span id="gqScore"></span>
+  </div>
+  <div id="gqText"></div>
+  <div id="gqBody"></div>
+  <div id="gqFeedback" class="qfb"></div>
+  <div class="qactions">
+    <button class="btn" id="gqSolve">Show solution</button>
+    <button class="btn primary" id="gqNext">Next question →</button>
+  </div>
+</div>
 <div id="mod-mri" class="mod"><div class="layout">
   <!-- LEFT: controls -->
   <div class="left">
@@ -488,10 +519,91 @@ Click to add a spike.</div>
   </div>
 </div></div>
 
+<div id="mod-us" class="mod"><div class="layout">
+  <div class="left">
+    <div class="panel">
+      <h2>Scene</h2>
+      <div class="seg" id="usScene"><button data-v="phantom">QA phantom</button><button data-v="abdomen" class="on">Abdomen</button><button data-v="vascular">Vascular</button></div>
+      <h2 style="margin-top:14px">Transducer</h2>
+      <div class="seg" id="usProbe"><button data-v="linear">Linear</button><button data-v="curved" class="on">Curvilinear</button></div>
+    </div>
+    <div class="panel">
+      <h2>Imaging</h2>
+      <div class="row"><label>Frequency <output id="o_usFREQ"></output></label><input type="range" id="usFREQ" min="2" max="7" step="0.5"></div>
+      <div class="row"><label>Depth <output id="o_usDEPTH"></output></label><input type="range" id="usDEPTH" min="40" max="240" step="5"></div>
+      <div class="row"><label>Focus depth <output id="o_usFOCUS"></output></label><input type="range" id="usFOCUS" min="5" max="160" step="1"></div>
+      <div class="row"><label>Focal zones</label><div class="seg" id="usZones"><button data-v="1" class="on">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
+      <label class="check"><input type="checkbox" id="us_harmonic"> Tissue harmonic imaging</label>
+      <label class="check"><input type="checkbox" id="us_compound"> Spatial compounding</label>
+    </div>
+    <div class="panel">
+      <h2>Gain and display</h2>
+      <div class="row"><label>Overall gain <output id="o_usGAIN"></output></label><input type="range" id="usGAIN" min="-30" max="30" step="1"></div>
+      <div class="row"><label>Time-gain compensation (TGC)</label>
+        <div class="tgclab"><span>near field</span><span>±20 dB</span></div>
+        <div id="usTGC"></div>
+        <div class="tgclab"><span>far field</span></div>
+        <div class="btn-row"><button class="btn" id="usTGCreset">Reset TGC</button><button class="btn" id="usOpt">Optimize</button></div>
+      </div>
+      <div class="row"><label>Dynamic range <output id="o_usDR"></output></label><input type="range" id="usDR" min="30" max="90" step="1"></div>
+      <div class="row"><label>Output power <output id="o_usPOWER"></output></label><input type="range" id="usPOWER" min="10" max="100" step="5"></div>
+    </div>
+    <div class="panel">
+      <h2>Color Doppler</h2>
+      <label class="check"><input type="checkbox" id="us_doppler"> Color Doppler</label>
+      <div class="row"><label>Scale (PRF) <output id="o_usPRF"></output></label><input type="range" id="usPRF" min="0.5" max="12" step="0.5"></div>
+      <div class="row" id="usSteerRow"><label>Color box steering</label><div class="seg" id="usSteer"><button data-v="-20">−20°</button><button data-v="0" class="on">0°</button><button data-v="20">+20°</button></div></div>
+      <div class="row"><label>Color gain <output id="o_usCGAIN"></output></label><input type="range" id="usCGAIN" min="0" max="100" step="5"></div>
+    </div>
+    <div class="panel">
+      <h2>Findings</h2>
+      <label class="check usopt" data-scene="abdomen"><input type="checkbox" id="us_stone"> Gallstone</label>
+      <label class="check usopt" data-scene="abdomen"><input type="checkbox" id="us_cyst"> Liver cyst</label>
+      <label class="check usopt" data-scene="abdomen"><input type="checkbox" id="us_fluid"> Free fluid (Morison's pouch)</label>
+      <label class="check usopt" data-scene="vascular"><input type="checkbox" id="us_plaque"> Calcified plaque</label>
+      <div class="tip usopt" data-scene="phantom">The phantom has wire targets for resolution, anechoic cysts and gray-scale targets.</div>
+    </div>
+  </div>
+  <div class="center">
+    <div class="viewer">
+      <canvas id="usImg"></canvas>
+      <div class="ov tl" id="usTL"></div><div class="ov tr" id="usTR"></div><div class="ov bl" id="usBL"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">Frame rate</div><div class="v" id="usFR">–</div><div class="s">lines × zones × 2·depth / c</div></div>
+      <div class="stat"><div class="k">Axial resolution</div><div class="v" id="usAx">–</div><div class="s">spatial pulse length ÷ 2</div></div>
+      <div class="stat"><div class="k">Lateral resolution</div><div class="v" id="usLat">–</div><div class="s" id="usLatS"></div></div>
+      <div class="stat"><div class="k">MI / TI</div><div class="v" id="usMI">–</div><div class="s">bioeffect indices (approx.)</div></div>
+    </div>
+    <div class="panel weight learn" id="usNotes"></div>
+  </div>
+  <div class="right">
+    <div class="panel">
+      <h2>Beam profile</h2>
+      <canvas id="usBeam" style="width:100%;display:block"></canvas>
+      <div class="tip" style="margin-top:6px">Lateral beam width (FWHM) vs depth. The beam converges to its narrowest point at each focal zone (yellow markers) and diverges beyond. Lateral resolution equals the beam width, so put the focus at the structure of interest.</div>
+    </div>
+    <div class="panel">
+      <h2>Doppler</h2>
+      <table id="usDop"></table>
+      <div class="tip" style="margin-top:6px">Δf = 2 f₀ v cos θ / c. Nyquist limit: v = c · PRF / (4 f₀).</div>
+    </div>
+    <div class="panel learn">
+      <h2>How this ultrasound is simulated</h2>
+      <p><b>Tissue:</b> each region has a backscatter level, an attenuation coefficient (dB/cm/MHz) and an acoustic impedance. Random scatterers fixed in the tissue produce speckle.</p>
+      <p><b>Beam:</b> each scan line accumulates two-way attenuation. Interfaces reflect R = ((Z₂ − Z₁)/(Z₂ + Z₁))², depending on the angle, and pass the rest. The echoes are blurred by a point-spread function: axial = half the pulse length, lateral = beam width, which depends on frequency, aperture and focus.</p>
+      <p><b>Artifacts from the physics:</b> shadowing behind strongly attenuating or reflecting objects, enhancement behind fluid, reverberation behind gas, mirror images from the lung, and edge shadows at grazing incidence.</p>
+      <p><b>Display:</b> receiver noise, gain, a preset depth compensation plus your TGC, then log compression to the chosen dynamic range. Color Doppler maps v·cos θ, which wraps above the Nyquist limit.</p>
+      <p><b>Simplified:</b> 2D, anatomy drawn as simple shapes, no side lobes or speed-of-sound errors, static flow (no pulsatility or spectral Doppler). MI and TI are illustrative.</p>
+    </div>
+  </div>
+</div></div>
+
 <footer>
   <p><b>Anatomy:</b> ICBM 152 Nonlinear Asymmetric 2009c template (Fonov et al., NeuroImage 2011; Fonov et al., NeuroImage 2009), via TemplateFlow. Brain tissue comes from the template's gray matter, white matter and CSF probability maps. Fat, bone/air, muscle and fluid outside the brain are estimated from the template's T1w and T2w intensities. The lesions are simulated.</p>
   <p>Copyright (C) 1993–2004 Louis Collins, McConnell Brain Imaging Centre, Montreal Neurological Institute, McGill University. Permission to use, copy, modify, and distribute this software and its documentation for any purpose and without fee is hereby granted, provided that the above copyright notice appear in all copies. The authors and McGill University make no representations about the suitability of this software for any purpose. It is provided "as is" without express or implied warranty.</p>
   <p><b>CT and X-ray data</b> from The Cancer Imaging Archive via the NCI Imaging Data Commons. <b>Chest:</b> CT Lymph Nodes collection, case MED_LYMPH_054 (Roth HR et al., MICCAI 2014; Seff A et al., MICCAI 2015; doi:10.7937/K9/TCIA.2015.AQIIDCNM), CC BY 3.0. <b>Head:</b> NCI-MATCH EAY131 collection, case EAY131-368292, CC BY 4.0. TCIA: Clark K et al., J Digit Imaging 2013. Data was downsampled, denoised and stripped of the CT table. The implants are simulated.</p>
+  <p><b>Ultrasound</b> scenes are schematic models built for this simulator.</p>
   <p>For education only. Not for clinical use.</p>
 </footer>
 
@@ -1805,7 +1917,7 @@ document.querySelectorAll("#qCat button").forEach(b => b.addEventListener("click
   if (Q.cat === "chal") Q.chalIdx = -1;
   nextQuestion();
 }));
-document.getElementById("quizBtn").addEventListener("click", () => {
+function mriQuizToggle() {
   Q.on = !Q.on;
   document.body.classList.toggle("quiz", Q.on);
   document.getElementById("quizBtn").textContent = Q.on ? "Exit quiz" : "Quiz mode";
@@ -1819,7 +1931,9 @@ document.getElementById("quizBtn").addEventListener("click", () => {
     Q.cur = null;
     applyState(Q.saved || P_DEFAULT);
   }
-});
+}
+window.mriQuizToggle = mriQuizToggle;
+document.getElementById("quizBtn").addEventListener("click", () => { if (document.body.dataset.mod === "mri") mriQuizToggle(); });
 
 /* --- init --- */
 syncUI();
@@ -1833,9 +1947,11 @@ loadAtlas().then(a => { ATLAS = a; }).catch(err => {
 });
 </script>
 <script src="ctxr.js"></script>
+<script src="us.js"></script>
+<script src="quiz2.js"></script>
 <script>
 document.querySelectorAll("#modality button").forEach(b => b.addEventListener("click", () => {
-  if (b.dataset.v !== "mri" && document.body.classList.contains("quiz")) document.getElementById("quizBtn").click();
+  if (b.dataset.v !== "mri" && document.body.classList.contains("quiz")) window.mriQuizToggle();
 }));
 </script>
 </body>

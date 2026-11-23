@@ -422,6 +422,8 @@ function ctInfo() {
   if (CT.recon === "iter") notes.push("This simulated iterative reconstruction uses edge-preserving denoising. Noise drops a lot (allowing lower dose), but strong settings give a waxy, plastic look.");
   if (CT.pitch > 1.2) notes.push(`Pitch ${CT.pitch.toFixed(1)} covers the scan length faster and lowers dose per mAs, but effective mAs (mAs ÷ pitch) falls, so noise rises.`);
   $("ctNotes").innerHTML = notes.map(n => `<p>${n}</p>`).join("");
+  CT.ctdi = ctdi;
+  window.dispatchEvent(new CustomEvent("modrender", { detail: "ct" }));
 }
 let ctPending = false;
 function ctUpdate(reproject) {
@@ -771,6 +773,8 @@ function xrInfo(sp) {
   if (XR.pacer) notes.push("The pacemaker generator sits in the left infraclavicular region. Its lead runs through the left subclavian and brachiocephalic veins and the SVC into the right ventricle.");
   notes.push("This projection is computed from a real CT. The patient's arms are raised, as is usual for CT, so the scapulae and arm shadows differ from a standard PA chest film.");
   $("xrNotes").innerHTML = notes.map(n => `<p>${n}</p>`).join("");
+  XR.esak = esak; XR.mag = Mh;
+  window.dispatchEvent(new CustomEvent("modrender", { detail: "xr" }));
 }
 function xrSpectrum(sp) {
   const c = $("xrSpec"), dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = 170;
@@ -849,5 +853,36 @@ segBind("modality", m => {
   if (m === "xr") xrEnsure();
   if (m === "mri") window.dispatchEvent(new Event("resize"));
 });
-window.CTXR = { CT, XR, ctUpdate, xrUpdate, ctEnsure, xrEnsure };
+/* ---------- programmatic control (used by quiz mode) ---------- */
+function segOn(id, v) { document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle("on", b.dataset.v === String(v))); }
+function ctSyncUI() {
+  [["ctMAS", "mAs"], ["ctPITCH", "pitch"], ["ctTHK", "thk"], ["ctZ", "z"], ["ctMOT", "motion"]].forEach(([id, k]) => { $(id).value = CT[k]; });
+  $("ctDFOV").value = CT.dfov || $("ctDFOV").max;
+  ctShowAll();
+  segOn("ctKVP", CT.kVp); segOn("ctKER", CT.kernel); segOn("ctREC", CT.recon); segOn("ctVIEWS", CT.views); segOn("ctRegion", CT.region);
+  $("ctBH").value = CT.bh; $("ctMetal").checked = CT.metal; $("ctRing").checked = CT.ring;
+}
+async function ctApply(p) {
+  const region = p.region || "chest";
+  Object.assign(CT, { kVp: 120, pitch: 1, thk: 5, kernel: "standard", recon: "fbp", views: 360, bh: "water", metal: false, ring: false, motion: 0 });
+  await ctEnsure(region);                         // loads data and resets z, mAs, DFOV and window for the region
+  const { winName, zFrac, ...rest } = p;
+  Object.assign(CT, rest);
+  if (zFrac != null) { const z1 = ctZRange()[1], dz = ctVol().meta.dz; CT.z = Math.round(z1 * zFrac / dz) * dz; }
+  if (winName) { const w = CT_WINDOWS[region].find(q => q[0] === winName); if (w) CT.win = { W: w[1], L: w[2] }; }
+  ctSyncUI(); ctUpdate(true);
+}
+function ctHU(hu) { const m = CT.mono; if (!m) return hu; const [w, b] = decompose(hu); return 1000 * (w * m.w + b * m.b - m.w) / m.w; }
+function xrSyncUI() {
+  [["xrKVP", "kVp"], ["xrMAS", "mAsI"], ["xrSID", "SID"], ["xrFW", "fw"], ["xrFH", "fh"], ["xrMOT", "motion"]].forEach(([id, k]) => { $(id).value = XR[k]; });
+  XR.showAll();
+  segOn("xrView", XR.view); segOn("xrFocal", XR.focal); segOn("xrProc", XR.film ? "film" : "digital");
+  $("xrGrid").checked = XR.grid; $("xrEdge").checked = XR.edge; $("xrPacer").checked = XR.pacer;
+}
+async function xrApply(p) {
+  Object.assign(XR, { view: "PA", kVp: 120, mAsI: 9, SID: 180, grid: true, focal: "large", fw: 40, fh: 43, motion: 0, film: false, edge: true, pacer: false }, p);
+  xrSyncUI();
+  await xrEnsure();
+}
+window.CTXR = { CT, XR, ctUpdate, xrUpdate, ctEnsure, xrEnsure, ctApply, xrApply, ctSyncUI, xrSyncUI, ctHU, MAS_STEPS, CT_WINDOWS };
 })();
