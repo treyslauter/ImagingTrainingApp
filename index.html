@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radiology Physics Simulator</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #111110;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+    --border: #34332f;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e86;
+    --accent: #3987e5;
+    --s-csf: #3987e5;
+    --s-gm: #d95926;
+    --s-wm: #199e70;
+    --s-fat: #c98500;
+    --s-les: #d55181;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text-primary);
+    font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header p { margin: 0; color: var(--text-muted); flex: 1; min-width: 260px; }
+  header { align-items: center !important; }
+  .layout {
+    display: grid; gap: 14px; padding: 14px;
+    grid-template-columns: 300px minmax(340px, 560px) minmax(300px, 1fr);
+    align-items: start;
+  }
+  @media (max-width: 1180px) { .layout { grid-template-columns: 300px 1fr; } .right { grid-column: 1 / -1; } }
+  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .panel + .panel { margin-top: 12px; }
+  .panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin: 0 0 10px; font-weight: 600; }
+  .seg { display: flex; background: var(--surface-2); border-radius: 6px; padding: 2px; gap: 2px; }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--text-secondary);
+    padding: 6px 4px; border-radius: 5px; font: inherit; cursor: pointer;
+  }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .row { margin: 9px 0; }
+  .row.hidden { display: none; }
+  .row label { display: flex; justify-content: space-between; color: var(--text-secondary); margin-bottom: 3px; }
+  .row label output { color: var(--text-primary); font-variant-numeric: tabular-nums; font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 6px; margin: 6px 0; color: var(--text-secondary); cursor: pointer; }
+  .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .presets button, .btn {
+    background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; font: inherit; cursor: pointer; text-align: left;
+  }
+  .presets button:hover, .btn:hover { border-color: var(--accent); }
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .btn-row .btn { flex: 1; text-align: center; font-size: 12px; padding: 5px; }
+  select { width: 100%; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 6px; font: inherit; }
+
+  .viewer { position: relative; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  #img { display: block; width: 100%; aspect-ratio: 1; cursor: crosshair; image-rendering: auto; touch-action: none; }
+  .ov { position: absolute; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace; color: #e8e8e0; text-shadow: 0 0 3px #000, 0 0 2px #000; pointer-events: none; white-space: pre; }
+  .ov.tl { top: 8px; left: 10px; } .ov.tr { top: 8px; right: 10px; text-align: right; }
+  .ov.bl { bottom: 8px; left: 10px; } .ov.br { bottom: 8px; right: 10px; text-align: right; }
+  .ov.side { top: 50%; transform: translateY(-50%); color: #aaa; }
+  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); background: #000; font-size: 14px; }
+  .loading.hidden { display: none; }
+  .kgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 560px) { .kgrid { grid-template-columns: 1fr; } }
+  .kview { position: relative; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  #kcv { display: block; width: 100%; aspect-ratio: 1; cursor: crosshair; }
+  .kax { position: absolute; font: 11px/1.2 ui-monospace, Menlo, Consolas, monospace; color: #bbb; text-shadow: 0 0 3px #000; pointer-events: none; }
+  #kinfo { font: 11.5px/1.4 ui-monospace, Menlo, Consolas, monospace; color: var(--text-secondary); min-height: 34px; margin-top: 6px; white-space: pre-wrap; }
+  header .spacer { flex: 1; }
+  #quizBtn { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  body.quiz #quizBtn { background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border); }
+  #quizPanel { display: none; border-color: #3987e5; }
+  body.quiz #quizPanel { display: block; }
+  body.quiz #presetPanel { display: none; }
+  .qhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .qhead .seg { flex: 1; min-width: 260px; }
+  .qhead .seg button { font-size: 12px; }
+  #qScore { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #qText { font-size: 14px; line-height: 1.45; margin: 4px 0 10px; }
+  #qText small { display: block; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .qopts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  @media (max-width: 560px) { .qopts { grid-template-columns: 1fr; } }
+  .qopts button { background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font: inherit; cursor: pointer; text-align: left; }
+  .qopts button:hover:not(:disabled) { border-color: var(--accent); }
+  .qopts button:disabled { cursor: default; }
+  .qopts button.right { border-color: #0ca30c; background: rgba(12,163,12,0.18); }
+  .qopts button.wrong { border-color: #e66767; background: rgba(230,103,103,0.16); }
+  .qchecks { list-style: none; padding: 0; margin: 0; }
+  .qchecks li { padding: 4px 0; color: var(--text-secondary); display: flex; gap: 8px; align-items: baseline; }
+  .qchecks li::before { content: "✗"; color: #e66767; font-weight: 700; width: 14px; flex: none; }
+  .qchecks li.ok { color: var(--text-primary); }
+  .qchecks li.ok::before { content: "✓"; color: #0ca30c; }
+  .qchecks li .now { color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: auto; font-size: 12px; white-space: nowrap; }
+  #qFeedback { margin-top: 10px; padding: 10px 12px; border-radius: 6px; background: var(--surface-2); color: var(--text-secondary); display: none; }
+  #qFeedback.show { display: block; }
+  #qFeedback b.good { color: #4fd14f; } #qFeedback b.bad { color: #ff8a8a; }
+  .qactions { display: flex; gap: 6px; margin-top: 10px; justify-content: flex-end; }
+  .qactions .btn { text-align: center; }
+  .qactions .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .qnote { display: none; color: var(--text-muted); text-align: center; padding: 30px 14px; }
+  /* hidden answers while naming a sequence */
+  body.qhide .left > .panel { display: none; }
+  body.qhide .left .qnote { display: block; }
+  body.qhide #ovTL, body.qhide #ovTR, body.qhide #ovBR, body.qhide .stats, body.qhide .weight,
+  body.qhide .right, body.qhide #kpanel, body.qhide .hint, body.qhide .btn-row:has(#lockwin) { visibility: hidden; }
+  body.qhide .right, body.qhide #kpanel { display: none; }
+  /* challenges: hide the shortcut buttons */
+  body.qchal [data-null], body.qchal #ernst { display: none; }
+  .modseg { min-width: 220px; }
+  .modseg button { font-weight: 600; }
+  .mod { display: none; }
+  body[data-mod="mri"] #mod-mri, body[data-mod="ct"] #mod-ct, body[data-mod="xr"] #mod-xr { display: block; }
+  .modtxt { display: none; }
+  body[data-mod="mri"] .modtxt[data-for="mri"], body[data-mod="ct"] .modtxt[data-for="ct"], body[data-mod="xr"] .modtxt[data-for="xr"] { display: block; }
+  body:not([data-mod="mri"]) #quizBtn { display: none; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .chip.good { background: rgba(12,163,12,0.2); color: #6fdc6f; } .chip.warn { background: rgba(201,133,0,0.22); color: #f0b84a; } .chip.bad { background: rgba(230,103,103,0.2); color: #ff9a9a; }
+  .busy { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(26,26,25,0.85); color: var(--text-secondary); font-size: 11px; padding: 3px 9px; border-radius: 99px; pointer-events: none; }
+  .busy.hidden { display: none; }
+  #ctImg { display: block; width: 100%; aspect-ratio: 1; cursor: crosshair; touch-action: none; }
+  #xrImg { display: block; width: 100%; height: auto; touch-action: none; }
+  #ctSino { width: 100%; height: 220px; image-rendering: auto; display: block; background: #000; border-radius: 6px; }
+  .stats.three { grid-template-columns: repeat(3, 1fr); }
+  #ctWin { grid-template-columns: repeat(3, 1fr); }
+  footer { padding: 4px 18px 18px; color: var(--text-muted); font-size: 11px; max-width: 1200px; }
+  footer p { margin: 4px 0; }
+  .ov.ant { top: 6px; left: 50%; transform: translateX(-50%); color: #aaa; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  .stat { background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .stat .k { color: var(--text-muted); font-size: 11px; }
+  .stat .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .s { color: var(--text-secondary); font-size: 11px; }
+  .weight { margin-top: 12px; }
+  .weight .tag { display: inline-block; background: var(--surface-2); border: 1px solid var(--border); padding: 3px 9px; border-radius: 99px; font-weight: 600; }
+  .weight p { color: var(--text-secondary); margin: 8px 0 0; }
+  .hint { color: var(--text-muted); font-size: 11.5px; margin-top: 8px; }
+  canvas.plot { width: 100%; display: block; }
+  .plotbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .plotbar .legend { margin-bottom: 0; }
+  .zoom { display: flex; gap: 4px; }
+  .zoom button { background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 5px; font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointer; min-width: 26px; }
+  .zoom button:hover { border-color: var(--accent); }
+  canvas.plot { touch-action: pan-y; cursor: crosshair; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-muted); font-weight: 500; font-size: 11px; }
+  td .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
+  .learn p { color: var(--text-secondary); margin: 6px 0; }
+  .learn b { color: var(--text-primary); }
+  .tip { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+</style>
+</head>
+<body data-mod="mri">
+<header>
+  <h1>Radiology Physics Simulator</h1>
+  <div class="seg modseg" id="modality"><button data-v="mri" class="on">MRI</button><button data-v="ct">CT</button><button data-v="xr">X-ray</button></div>
+  <p class="modtxt" data-for="mri">Real head anatomy from the ICBM152 template, an average of 152 healthy adult brains. Every pixel is recalculated from tissue T1, T2, T2* and proton density whenever you change a setting.</p>
+  <p class="modtxt" data-for="ct">Real patient CT data, re-projected and reconstructed live: X-ray spectrum → projections → photon noise → filtered backprojection.</p>
+  <p class="modtxt" data-for="xr">A chest radiograph computed by projecting X-rays through a real patient CT, with spectrum, scatter, grid, detector noise and image processing.</p>
+  <button id="quizBtn">Quiz mode</button>
+</header>
+
+<div id="mod-mri" class="mod"><div class="layout">
+  <!-- LEFT: controls -->
+  <div class="left">
+    <div class="panel qnote">Controls are hidden until you answer. Look at the image: drag on it to change window and level, and hover to identify tissues.</div>
+    <div class="panel">
+      <h2>Field strength</h2>
+      <div class="seg" id="field">
+        <button data-v="1.5" class="on">1.5 T</button>
+        <button data-v="3">3.0 T</button>
+      </div>
+      <h2 style="margin-top:14px">Pulse sequence</h2>
+      <div class="seg" id="seq">
+        <button data-v="SE" class="on">SE</button>
+        <button data-v="FSE">FSE</button>
+        <button data-v="IR">IR</button>
+        <button data-v="GRE">GRE</button>
+      </div>
+      <div class="tip" id="seqDesc"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Timing</h2>
+      <div class="row"><label>TR (repetition time) <output id="o_TR"></output></label><input type="range" id="TR" min="10" max="12000" step="10"></div>
+      <div class="row"><label>TE (echo time) <output id="o_TE"></output></label><input type="range" id="TE" min="2" max="300" step="1"></div>
+      <div class="row ir"><label>TI (inversion time) <output id="o_TI"></output></label><input type="range" id="TI" min="20" max="4000" step="10">
+        <div class="btn-row">
+          <button class="btn" data-null="fat">Null fat</button>
+          <button class="btn" data-null="wm">Null WM</button>
+          <button class="btn" data-null="csf">Null CSF</button>
+        </div>
+      </div>
+      <div class="row gre"><label>Flip angle <output id="o_FA"></output></label><input type="range" id="FA" min="2" max="90" step="1">
+        <div class="btn-row"><button class="btn" id="ernst">Set Ernst angle for WM</button></div>
+      </div>
+      <div class="row fse"><label>Echo train length (ETL) <output id="o_ETL"></output></label><input type="range" id="ETL" min="2" max="32" step="1"></div>
+      <div class="row ir"><label class="check" style="justify-content:flex-start"><input type="checkbox" id="psir"> Phase-sensitive (real) reconstruction</label></div>
+    </div>
+
+    <div class="panel">
+      <h2>Geometry and SNR</h2>
+      <div class="row" id="sliceRow"><label>Slice position (axial) <output id="o_Z"></output></label><input type="range" id="Z" min="-45" max="75" step="1"></div>
+      <div class="row"><label>NEX (averages) <output id="o_NEX"></output></label><input type="range" id="NEX" min="1" max="8" step="1"></div>
+      <div class="row"><label>Frequency matrix <output id="o_NX"></output></label><input type="range" id="NX" min="0" max="4" step="1"></div>
+      <div class="row"><label>Phase matrix <output id="o_NY"></output></label><input type="range" id="NY" min="0" max="4" step="1"></div>
+      <div class="row"><label>FOV <output id="o_FOV"></output></label><input type="range" id="FOV" min="160" max="300" step="5"></div>
+      <div class="row"><label>Slice thickness <output id="o_THK"></output></label><input type="range" id="THK" min="1" max="10" step="0.5"></div>
+      <div class="row"><label>Receiver bandwidth <output id="o_BW"></output></label><input type="range" id="BW" min="8" max="128" step="2"></div>
+      <div class="row"><label>Phase-encode direction</label>
+        <div class="seg" id="pdir"><button data-v="AP" class="on">A–P</button><button data-v="LR">R–L</button></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Options and artifacts</h2>
+      <label class="check"><input type="checkbox" id="fatsat"> Chemical fat saturation</label>
+      <label class="check"><input type="checkbox" id="gd"> Gadolinium given (shortens T1)</label>
+      <div class="row"><label>Patient motion <output id="o_MOT"></output></label><input type="range" id="MOT" min="0" max="10" step="0.5"></div>
+      <div class="row"><label>Pathology</label>
+        <select id="path">
+          <option value="none">None (normal brain)</option>
+          <option value="ms">Multiple sclerosis plaques</option>
+          <option value="tumor">Tumor with edema</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: image -->
+  <div class="center">
+    <div class="panel" id="quizPanel">
+      <div class="qhead">
+        <div class="seg" id="qCat">
+          <button data-v="mixed" class="on">Mixed</button>
+          <button data-v="name">Name the sequence</button>
+          <button data-v="chal">Challenges</button>
+          <button data-v="phys">Physics</button>
+        </div>
+        <span id="qScore">Score 0 / 0</span>
+      </div>
+      <div id="qText"></div>
+      <div id="qBody"></div>
+      <div id="qFeedback"></div>
+      <div class="qactions">
+        <button class="btn" id="qSolve">Show solution</button>
+        <button class="btn primary" id="qNext">Next question →</button>
+      </div>
+    </div>
+    <div class="panel" id="presetPanel" style="padding:10px">
+      <h2>Presets</h2>
+      <div class="presets" id="presets"></div>
+    </div>
+    <div class="viewer" style="margin-top:12px">
+      <canvas id="img" width="512" height="512"></canvas>
+      <div class="ov ant">A</div>
+      <div class="ov side" style="left:8px">R</div>
+      <div class="ov side" style="right:8px">L</div>
+      <div class="loading" id="loading">Loading anatomy…</div>
+      <div class="ov tl" id="ovTL"></div>
+      <div class="ov tr" id="ovTR"></div>
+      <div class="ov bl" id="ovBL"></div>
+      <div class="ov br" id="ovBR"></div>
+    </div>
+    <div class="hint">Drag on the image to change window (left–right) and level (up–down), like on a PACS workstation. Double-click to go back to auto-window. Hover to see which tissue is under the cursor.</div>
+    <div class="btn-row"><label class="check" style="margin:0"><input type="checkbox" id="lockwin"> Lock window, so you see absolute signal changes instead of auto-scaled ones</label></div>
+    <div class="stats">
+      <div class="stat"><div class="k">Scan time</div><div class="v" id="stTime">–</div><div class="s" id="stTimeS"></div></div>
+      <div class="stat"><div class="k">Relative SNR</div><div class="v" id="stSNR">–</div><div class="s">vs. 1.5T reference</div></div>
+      <div class="stat"><div class="k">Voxel size</div><div class="v" id="stVox">–</div><div class="s" id="stVoxS"></div></div>
+      <div class="stat"><div class="k">Fat shift</div><div class="v" id="stCS">–</div><div class="s">chemical shift, pixels</div></div>
+    </div>
+    <div class="panel" id="kpanel" style="margin-top:12px">
+      <h2>k-space (raw data)</h2>
+      <div class="kgrid">
+        <div>
+          <div class="kview">
+            <canvas id="kcv" width="256" height="256"></canvas>
+            <div class="kax" id="kaxH" style="bottom:4px;left:50%;transform:translateX(-50%)"></div>
+            <div class="kax" id="kaxV" style="left:4px;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:left center;margin-left:8px"></div>
+          </div>
+          <div id="kinfo">Hover over k-space for frequency details.
+Click to add a spike.</div>
+        </div>
+        <div>
+          <div class="row" style="margin-top:0"><label>Acquisition</label>
+            <select id="kacq">
+              <option value="full">Full k-space</option>
+              <option value="pf">Partial Fourier (5/8 of phase lines)</option>
+              <option value="r2">Skip every other line (×2, no unfolding)</option>
+            </select>
+          </div>
+          <div class="row"><label>Reconstruct image from</label>
+            <div class="seg" id="krecon">
+              <button data-v="all" class="on">All</button>
+              <button data-v="center">Center</button>
+              <button data-v="edges">Edges</button>
+            </div>
+          </div>
+          <div class="row hidden" id="krRow"><label>Center radius <output id="o_KR"></output></label><input type="range" id="KR" min="2" max="60" step="1" value="12"></div>
+          <div class="btn-row"><button class="btn" id="kclear">Clear spikes</button></div>
+          <div class="tip" id="ktip" style="margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel weight">
+      <span class="tag" id="wTag">–</span>
+      <p id="wText"></p>
+    </div>
+  </div>
+
+  <!-- RIGHT: physics -->
+  <div class="right">
+    <div class="panel">
+      <h2 id="mzTitle">Longitudinal recovery (Mz) up to the moment of excitation</h2>
+      <div class="plotbar"><div class="legend" id="legend1"></div>
+        <div class="zoom" data-plot="mz"><button data-z="out" title="Zoom out (show longer times)">−</button><button data-z="in" title="Zoom in">+</button><button data-z="full" title="Show each curve until it levels off">Full curves</button><button data-z="reset" title="Back to the default range">Reset</button></div></div>
+      <canvas class="plot" id="plotMz" height="220"></canvas>
+      <div class="tip" id="mzTip"></div>
+    </div>
+    <div class="panel">
+      <h2 id="mxyTitle">Transverse decay (Mxy) after excitation</h2>
+      <div class="plotbar"><div class="legend" id="legend2"></div>
+        <div class="zoom" data-plot="mxy"><button data-z="out" title="Zoom out (show longer times)">−</button><button data-z="in" title="Zoom in">+</button><button data-z="full" title="Show each curve until it has decayed">Full curves</button><button data-z="reset" title="Back to the default range">Reset</button></div></div>
+      <canvas class="plot" id="plotMxy" height="220"></canvas>
+      <div class="tip" id="mxyTip"></div>
+    </div>
+    <div class="panel">
+      <h2>Tissue signal at current settings</h2>
+      <table id="tbl"></table>
+    </div>
+    <div class="panel learn">
+      <h2>How the image is calculated</h2>
+      <p><b>Spin echo:</b> S = PD · (1 − e<sup>−TR/T1</sup>) · e<sup>−TE/T2</sup></p>
+      <p><b>Inversion recovery:</b> S = PD · (1 − 2e<sup>−TI/T1</sup> + e<sup>−TR/T1</sup>) · e<sup>−TE/T2</sup>. Magnitude reconstruction shows |S|, so a tissue is black when its TI lands on its zero-crossing. The null point is TI ≈ T1 · ln 2 when TR ≫ T1.</p>
+      <p><b>Spoiled gradient echo:</b> S = PD · sin α · (1 − E1) / (1 − cos α · E1) · e<sup>−TE/T2*</sup>, where E1 = e<sup>−TR/T1</sup>. There is no 180° refocusing pulse, so decay follows T2*, not T2.</p>
+      <p><b>SNR</b> scales with voxel volume × √(phase steps × NEX ÷ bandwidth) × field strength. <b>Scan time</b> = TR × phase steps × NEX ÷ ETL.</p>
+      <p><b>Artifacts modeled:</b> Gibbs ringing and blurring come from truncating k-space to the chosen matrix. Wraparound appears when the FOV is smaller than the head in the phase direction. Fat shifts along the frequency axis by (3.5 ppm × 42.58 MHz/T × B0) ÷ (bandwidth per pixel). Motion is modeled as random shifts between phase-encode lines, which produces ghosting in the phase direction. Noise is Rician because the image is displayed as magnitude.</p>
+      <p><b>Not modeled:</b> FSE blurring from the echo train, magnetization transfer, B1 and coil inhomogeneity, flow, susceptibility, and slice-profile effects. On FSE, fat is made brighter to mimic J-coupling. The tissue values are typical literature figures and are rounded for teaching. The anatomy is an average of 152 brains, so cortical detail is a little smoother than in a single patient. Each stored slab is 3 mm, and thicker slices blend neighboring slabs, so partial-volume averaging is real.</p>
+    </div>
+  </div>
+</div></div>
+
+<div id="mod-ct" class="mod"><div class="layout">
+  <div class="left">
+    <div class="panel">
+      <h2>Exam</h2>
+      <div class="seg" id="ctRegion"><button data-v="chest" class="on">Chest (IV contrast)</button><button data-v="head">Head (non-contrast)</button></div>
+    </div>
+    <div class="panel">
+      <h2>Technique</h2>
+      <div class="row"><label>Tube voltage</label><div class="seg" id="ctKVP"><button data-v="80">80</button><button data-v="100">100</button><button data-v="120" class="on">120</button><button data-v="140">140 kVp</button></div></div>
+      <div class="row"><label>Tube current–time <output id="o_ctMAS"></output></label><input type="range" id="ctMAS" min="10" max="600" step="5"></div>
+      <div class="row"><label>Pitch <output id="o_ctPITCH"></output></label><input type="range" id="ctPITCH" min="0.5" max="2" step="0.1"></div>
+      <div class="row"><label>Slice thickness <output id="o_ctTHK"></output></label><input type="range" id="ctTHK" min="2" max="10" step="0.5"></div>
+      <div class="row"><label>Slice position <output id="o_ctZ"></output></label><input type="range" id="ctZ" min="0" max="400" step="2"></div>
+    </div>
+    <div class="panel">
+      <h2>Reconstruction</h2>
+      <div class="row"><label>Kernel</label><div class="seg" id="ctKER"><button data-v="smooth">Smooth</button><button data-v="standard" class="on">Standard</button><button data-v="sharp">Sharp</button></div></div>
+      <div class="row"><label>Method</label><div class="seg" id="ctREC"><button data-v="fbp" class="on">FBP</button><button data-v="iter">Iterative</button></div></div>
+      <div class="row"><label>Projections per rotation</label><div class="seg" id="ctVIEWS"><button data-v="60">60</button><button data-v="120">120</button><button data-v="360" class="on">360</button><button data-v="720">720</button></div></div>
+      <div class="row"><label>Display FOV <output id="o_ctDFOV"></output></label><input type="range" id="ctDFOV" min="160" max="420" step="5"></div>
+      <div class="row"><label>Beam hardening</label>
+        <select id="ctBH"><option value="water" selected>Polychromatic, water-corrected (realistic)</option><option value="uncorrected">Polychromatic, uncorrected</option><option value="ideal">Ideal monoenergetic beam</option></select></div>
+    </div>
+    <div class="panel">
+      <h2>Artifacts</h2>
+      <label class="check"><input type="checkbox" id="ctMetal"> <span id="ctMetalLbl">Metal implant</span></label>
+      <label class="check"><input type="checkbox" id="ctRing"> Miscalibrated detector element (ring)</label>
+      <div class="row"><label>Patient motion <output id="o_ctMOT"></output></label><input type="range" id="ctMOT" min="0" max="20" step="1"></div>
+    </div>
+  </div>
+  <div class="center">
+    <div class="panel" style="padding:10px"><h2>Window presets (W/L)</h2><div class="presets" id="ctWin"></div></div>
+    <div class="viewer" style="margin-top:12px">
+      <canvas id="ctImg" width="512" height="512"></canvas>
+      <div class="ov ant">A</div><div class="ov side" style="left:8px">R</div><div class="ov side" style="right:8px">L</div>
+      <div class="ov tl" id="ctTL"></div><div class="ov tr" id="ctTR"></div><div class="ov bl" id="ctBL"></div><div class="ov br" id="ctBR"></div>
+      <div class="busy hidden" id="ctBusy">Reconstructing…</div>
+      <div class="loading" id="ctLoading">Loading CT data…</div>
+    </div>
+    <div class="hint">Drag on the image to change window and level. Hover to read CT numbers and the mean ± SD in a 1 cm ROI, which is how CT noise is measured.</div>
+    <div class="stats">
+      <div class="stat"><div class="k">CTDIvol</div><div class="v" id="ctCTDI">–</div><div class="s">dose index per rotation</div></div>
+      <div class="stat"><div class="k">DLP</div><div class="v" id="ctDLP">–</div><div class="s" id="ctDLPs"></div></div>
+      <div class="stat"><div class="k">Effective dose</div><div class="v" id="ctE">–</div><div class="s">DLP × k (adult)</div></div>
+      <div class="stat"><div class="k">Image noise</div><div class="v" id="ctSD">–</div><div class="s">SD in soft tissue</div></div>
+    </div>
+    <div class="panel weight learn" id="ctNotes"></div>
+  </div>
+  <div class="right">
+    <div class="panel">
+      <h2>Sinogram (raw projection data)</h2>
+      <canvas id="ctSino"></canvas>
+      <div class="tip" style="margin-top:6px">Each row is one projection angle (0–180°, top to bottom), and each column is one detector channel. Every point in the body traces a sine wave. Filtered backprojection turns this back into the image. A bad detector shows up as a vertical line, metal as a bright sine wave, and motion as a jump partway down.</div>
+    </div>
+    <div class="panel">
+      <h2>CT numbers depend on kVp</h2>
+      <table id="ctTbl"></table>
+      <div class="tip" style="margin-top:6px">Water is always 0 HU because scanners calibrate it at each kVp. Iodine and bone have higher atomic numbers, so their HU rise at low kVp (more photoelectric absorption).</div>
+    </div>
+    <div class="panel learn">
+      <h2>How this CT is simulated</h2>
+      <p><b>Anatomy:</b> each voxel of a real CT is split into water-equivalent tissue and bone-equivalent material. Their attenuation is then recalculated for every energy in the X-ray spectrum.</p>
+      <p><b>Acquisition:</b> parallel-beam projections over 180°. Each detector reading is a sum over the spectrum of e<sup>−∫μ(E)</sup>, with Poisson photon noise proportional to mAs ÷ pitch × slice thickness.</p>
+      <p><b>Reconstruction:</b> −ln(I/I₀), optional water beam-hardening correction, a ramp filter shaped by the kernel, then backprojection. HU = 1000 × (μ − μ<sub>water</sub>) / μ<sub>water</sub>.</p>
+      <p><b>Simplified:</b> parallel beam instead of fan or cone beam, no bowtie filter or tube current modulation, and no helical interpolation. "Iterative" is an edge-preserving denoising stand-in. Dose numbers are typical scanner values for illustration.</p>
+    </div>
+  </div>
+</div></div>
+
+<div id="mod-xr" class="mod"><div class="layout">
+  <div class="left">
+    <div class="panel">
+      <h2>Projection</h2>
+      <div class="seg" id="xrView"><button data-v="PA" class="on">PA</button><button data-v="AP">AP portable</button><button data-v="LAT">Lateral</button></div>
+    </div>
+    <div class="panel">
+      <h2>Technique</h2>
+      <div class="row"><label>Tube voltage <output id="o_xrKVP"></output></label><input type="range" id="xrKVP" min="50" max="150" step="1"></div>
+      <div class="row"><label>Tube current–time <output id="o_xrMAS"></output></label><input type="range" id="xrMAS" min="0" max="26" step="1"></div>
+      <div class="row"><label>Source-to-image distance <output id="o_xrSID"></output></label><input type="range" id="xrSID" min="90" max="200" step="5"></div>
+      <div class="row"><label>Focal spot</label><div class="seg" id="xrFocal"><button data-v="small">Small (200 mA)</button><button data-v="large" class="on">Large (500 mA)</button></div></div>
+      <label class="check"><input type="checkbox" id="xrGrid" checked> Anti-scatter grid (10:1)</label>
+    </div>
+    <div class="panel">
+      <h2>Field and patient</h2>
+      <div class="row"><label>Collimation width <output id="o_xrFW"></output></label><input type="range" id="xrFW" min="10" max="43" step="1"></div>
+      <div class="row"><label>Collimation height <output id="o_xrFH"></output></label><input type="range" id="xrFH" min="10" max="43" step="1"></div>
+      <div class="row"><label>Patient motion <output id="o_xrMOT"></output></label><input type="range" id="xrMOT" min="0" max="100" step="5"></div>
+      <label class="check"><input type="checkbox" id="xrPacer"> Pacemaker</label>
+    </div>
+    <div class="panel">
+      <h2>Image receptor</h2>
+      <div class="seg" id="xrProc"><button data-v="digital" class="on">Digital (processed)</button><button data-v="film">Screen-film</button></div>
+      <label class="check" style="margin-top:8px"><input type="checkbox" id="xrEdge" checked> Edge enhancement</label>
+    </div>
+  </div>
+  <div class="center">
+    <div class="viewer" style="background:#000">
+      <canvas id="xrImg"></canvas>
+      <div class="ov tl" id="xrTL"></div><div class="ov tr" id="xrTR"></div><div class="ov br" id="xrBR"></div>
+      <div class="loading" id="xrLoading">Loading chest data…</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">Exposure index</div><div class="v" id="xrEI">–</div><div class="s" id="xrDI"></div></div>
+      <div class="stat"><div class="k">Entrance skin dose</div><div class="v" id="xrESAK">–</div><div class="s">ESAK incl. backscatter</div></div>
+      <div class="stat"><div class="k">Effective dose</div><div class="v" id="xrE">–</div><div class="s">approximate</div></div>
+      <div class="stat"><div class="k">Exposure time</div><div class="v" id="xrT">–</div><div class="s" id="xrTs"></div></div>
+    </div>
+    <div class="panel weight learn" id="xrNotes"></div>
+  </div>
+  <div class="right">
+    <div class="panel">
+      <h2>X-ray spectrum (after filtration)</h2>
+      <canvas id="xrSpec" style="width:100%;display:block"></canvas>
+      <div class="tip" style="margin-top:6px">Bremsstrahlung plus tungsten characteristic lines, filtered by 3 mm aluminium. kVp sets the maximum energy and shifts the mean. mAs changes only the number of photons, not their energies.</div>
+    </div>
+    <div class="panel">
+      <h2>Image formation at current settings</h2>
+      <table id="xrTbl"></table>
+      <div class="tip" style="margin-top:6px">Heart magnification = SID ÷ (SID − heart-to-detector distance) <span style="white-space:nowrap">· <span id="xrMag"></span></span></div>
+    </div>
+    <div class="panel learn">
+      <h2>How this radiograph is simulated</h2>
+      <p><b>Primary beam:</b> rays from the focal spot pass through the CT volume in 10 depth slabs. Each slab is magnified by its own SID ÷ (SID − distance to detector), so AP and PA geometry differ realistically. Transmission is summed over the spectrum for water-like and bone-like material.</p>
+      <p><b>Scatter:</b> a broad blur proportional to irradiated tissue thickness and field size. The grid passes ~72% of primary and ~11% of scatter.</p>
+      <p><b>Detector:</b> air kerma ∝ kVp² × mAs ÷ SID², with Poisson noise. The exposure index (EI) is 100 × median detector air kerma in µGy, with a target of 250. DI = 10·log₁₀(EI / 250).</p>
+      <p><b>Processing:</b> digital mode log-transforms the signal, rescales it from the histogram and applies a contrast curve and unsharp masking. Screen-film follows a fixed H&amp;D curve, so exposure errors show as light or dark films.</p>
+    </div>
+  </div>
+</div></div>
+
+<footer>
+  <p><b>Anatomy:</b> ICBM 152 Nonlinear Asymmetric 2009c template (Fonov et al., NeuroImage 2011; Fonov et al., NeuroImage 2009), via TemplateFlow. Brain tissue comes from the template's gray matter, white matter and CSF probability maps. Fat, bone/air, muscle and fluid outside the brain are estimated from the template's T1w and T2w intensities. The lesions are simulated.</p>
+  <p>Copyright (C) 1993–2004 Louis Collins, McConnell Brain Imaging Centre, Montreal Neurological Institute, McGill University. Permission to use, copy, modify, and distribute this software and its documentation for any purpose and without fee is hereby granted, provided that the above copyright notice appear in all copies. The authors and McGill University make no representations about the suitability of this software for any purpose. It is provided "as is" without express or implied warranty.</p>
+  <p><b>CT and X-ray data</b> from The Cancer Imaging Archive via the NCI Imaging Data Commons. <b>Chest:</b> CT Lymph Nodes collection, case MED_LYMPH_054 (Roth HR et al., MICCAI 2014; Seff A et al., MICCAI 2015; doi:10.7937/K9/TCIA.2015.AQIIDCNM), CC BY 3.0. <b>Head:</b> NCI-MATCH EAY131 collection, case EAY131-368292, CC BY 4.0. TCIA: Clark K et al., J Digit Imaging 2013. Data was downsampled, denoised and stripped of the CT table. The implants are simulated.</p>
+  <p>For education only. Not for clinical use.</p>
+</footer>
+
+<script>
+"use strict";
+/* ============================================================
+   Tissue properties  [1.5T, 3T]   times in ms
+   ============================================================ */
+const TISSUES = [
+  { key: "air",   name: "Air",                 pd: 0,    t1: [1, 1],       t2: [1, 1],       t2s: [1, 1] },
+  { key: "fat",   name: "Fat (scalp/marrow)",  pd: 0.95, t1: [260, 380],   t2: [80, 70],     t2s: [40, 25] },
+  { key: "bone",  name: "Cortical bone",       pd: 0.05, t1: [1000, 1200], t2: [1, 1],       t2s: [0.5, 0.4] },
+  { key: "musc",  name: "Muscle/skin",         pd: 0.72, t1: [870, 1420],  t2: [47, 32],     t2s: [30, 20] },
+  { key: "csf",   name: "CSF",                 pd: 1.0,  t1: [4000, 4300], t2: [2000, 1800], t2s: [1200, 900] },
+  { key: "gm",    name: "Gray matter",         pd: 0.82, t1: [950, 1350],  t2: [100, 90],    t2s: [70, 50] },
+  { key: "wm",    name: "White matter",        pd: 0.70, t1: [600, 830],   t2: [80, 70],     t2s: [55, 40] },
+  { key: "dgm",   name: "Deep gray nuclei",    pd: 0.78, t1: [880, 1200],  t2: [85, 75],     t2s: [50, 35] },
+  { key: "ms",    name: "MS plaque",           pd: 0.86, t1: [1100, 1450], t2: [160, 140],   t2s: [100, 80] },
+  { key: "edema", name: "Vasogenic edema",     pd: 0.90, t1: [1250, 1650], t2: [220, 190],   t2s: [140, 110] },
+  { key: "rim",   name: "Enhancing tumor rim", pd: 0.85, t1: [1000, 1350], t2: [120, 105],   t2s: [70, 55], gd: true },
+  { key: "core",  name: "Necrotic core",       pd: 0.95, t1: [2400, 2800], t2: [500, 450],   t2s: [250, 200] },
+];
+const T = {}; TISSUES.forEach((t, i) => T[t.key] = i);
+const NT = TISSUES.length;
+const SERIES = [
+  { key: "csf", color: "#3987e5", label: "CSF" },
+  { key: "gm",  color: "#d95926", label: "GM" },
+  { key: "wm",  color: "#199e70", label: "WM" },
+  { key: "fat", color: "#c98500", label: "Fat" },
+];
+const LESION_COLOR = "#d55181";
+
+/* ============================================================
+   Procedural phantom
+   ============================================================ */
+const N = 256;          // phantom & image grid
+const PH_MM = 256;      // phantom extent (mm): 1 mm pixels
+const PX = PH_MM / N;
+
+function hash(ix, iy, s) {
+  let h = (ix * 374761393 + iy * 668265263 + s * 2147483647) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x, y, s) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const a = hash(ix, iy, s), b = hash(ix + 1, iy, s), c = hash(ix, iy + 1, s), d = hash(ix + 1, iy + 1, s);
+  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+}
+function fbm(x, y, s) {
+  return (0.6 * vnoise(x, y, s) + 0.28 * vnoise(x * 2.03 + 11.1, y * 2.03 + 7.7, s + 1) + 0.12 * vnoise(x * 4.1 + 3.3, y * 4.1 + 5.5, s + 2));
+}
+function inEll(x, y, cx, cy, a, b, ang) {
+  const dx = x - cx, dy = y - cy;
+  const c = Math.cos(ang || 0), s = Math.sin(ang || 0);
+  const u = dx * c + dy * s, v = -dx * s + dy * c;
+  return (u * u) / (a * a) + (v * v) / (b * b) <= 1;
+}
+function ellR(x, y, cx, cy, a, b) { // normalized radius
+  const dx = (x - cx) / a, dy = (y - cy) / b; return Math.sqrt(dx * dx + dy * dy);
+}
+
+function tissueAt(x, y, path) {
+  // x: right(+) / left(-) in image, y: posterior(+), anterior(-)
+  const a = 73, b = y < 0 ? 90 : 95;
+  const th = Math.atan2(y, x);
+  const wob = 1 + 0.012 * Math.sin(3 * th + 0.7) + 0.008 * Math.sin(5 * th);
+  const rho = Math.sqrt((x / a) ** 2 + (y / b) ** 2) / wob;
+  const R = (a * b) / Math.sqrt((b * Math.cos(th)) ** 2 + (a * Math.sin(th)) ** 2) * wob;
+  const dh = (1 - rho) * R; // depth below scalp surface (mm)
+  if (dh < 0) return T.air;
+  if (dh < 1.4) return T.musc;           // skin
+  if (dh < 5.2) return T.fat;            // subcutaneous fat
+  const lat = Math.max(0, Math.abs(Math.cos(th)) - 0.55) / 0.45; // lateral factor
+  const mus = 6 * Math.min(1, lat * 1.4) * (y < 45 ? 1 : 0.3);  // temporalis
+  let d = dh - 5.2;
+  if (d < mus) return T.musc;
+  d -= mus;
+  if (d < 2.2) return T.bone;            // outer table
+  if (d < 4.4) return T.fat;             // diploe (fatty marrow)
+  if (d < 6.4) return T.bone;            // inner table
+  d -= 6.4;
+  if (d < 1.8) return T.csf;             // subarachnoid space
+  const db = d - 1.8;                    // depth into brain
+
+  // --- cortex & sulci ---
+  // sulci run roughly perpendicular to the surface; a noise warp makes them wander and branch
+  const K = 30;
+  const warp = 3.2 * (fbm(x / 26 + 7, y / 26 + 3, 5) - 0.5) + 0.45 * (vnoise(x / 9, y / 9, 6) - 0.5) * Math.min(1, db / 6);
+  const ph = (th / (2 * Math.PI)) * K + warp;
+  const u = ph - Math.floor(ph);
+  const rLoc = Math.max(20, R - 20 - db);                    // local radius at this depth
+  const dS = Math.min(u, 1 - u) * (2 * Math.PI * rLoc / K);  // mm to nearest sulcus
+  const idx = Math.floor(ph);
+  const sd = 8 + 11 * hash(idx, 3, 8);                       // sulcal depth varies per sulcus
+  // secondary (shallower) sulci between the main ones
+  const u2 = (ph + 0.5) - Math.floor(ph + 0.5);
+  const dS2 = Math.min(u2, 1 - u2) * (2 * Math.PI * rLoc / K);
+  const sd2 = hash(idx, 5, 9) < 0.35 ? 3 + 5 * hash(idx, 7, 9) : 0;
+  let t;
+  if ((dS < 0.75 && db < sd) || (dS2 < 0.6 && db < sd2)) t = T.csf;
+  else if (db < 2.8 || (dS < 3.2 && db < sd + 2.8) || (dS2 < 2.9 && db < sd2 + 2.8)) t = T.gm;
+  else t = T.wm;
+
+  // interhemispheric fissure
+  const ay = Math.abs(y);
+  if (ay > 30) {
+    if (Math.abs(x) < 1.3) t = T.csf;
+    else if (Math.abs(x) < 4.5 && t === T.wm) t = T.gm;
+  }
+  // insula + sylvian fissure
+  for (const s of [-1, 1]) {
+    if (inEll(x, y, s * 37, -2, 3.2, 15)) t = T.gm;
+    if (inEll(x, y, s * 41.5, -3, 1.6, 17)) t = T.csf;
+  }
+  // deep gray nuclei
+  for (const s of [-1, 1]) {
+    if (inEll(x, y, s * 23, -1, 6, 15, s * 0.18)) t = T.dgm;   // lentiform
+    if (inEll(x, y, s * 13.5, -15, 4.5, 8, s * 0.3)) t = T.dgm; // caudate head
+    if (inEll(x, y, s * 8.5, 9, 7, 10, -s * 0.15)) t = T.dgm;   // thalamus
+  }
+  // lateral ventricles
+  for (const s of [-1, 1]) {
+    if (inEll(x, y, s * 8, -16, 4, 12, s * 0.32)) t = T.csf;     // frontal horn
+    if (inEll(x, y, s * 9.5, -2, 3, 8, s * 0.1)) t = T.csf;      // body
+    if (inEll(x, y, s * 14, 15, 5, 11, -s * 0.45)) t = T.csf;    // atrium
+    if (inEll(x, y, s * 19, 30, 2.6, 8, -s * 0.5)) t = T.csf;    // occipital horn
+  }
+  if (Math.abs(x) < 1.6 && y > -3 && y < 13) t = T.csf;          // third ventricle
+  if (Math.abs(x) < 0.8 && y > -26 && y < -6) t = T.wm;          // septum pellucidum
+
+  // --- pathology ---
+  if (path === "ms" && t === T.wm) {
+    const plaques = [[-15, -27, 3, 5, 0.6], [16, -24, 2.5, 4, -0.5], [-19, 8, 2.6, 4.5, 0.2], [20, 26, 3, 5, -0.6], [-28, -6, 2, 3.5, 0.1], [10, 34, 2.4, 3, 0.4], [30, 12, 2.2, 3, 0.9]];
+    for (const p of plaques) if (inEll(x, y, p[0], p[1], p[2], p[3], p[4])) t = T.ms;
+  }
+  if (path === "tumor" && db > 0) {
+    const cx = -30, cy = -30;
+    const ang = Math.atan2(y - cy, x - cx);
+    const irr = 1 + 0.12 * Math.sin(3 * ang + 1) + 0.08 * Math.sin(5 * ang);
+    const r = Math.hypot(x - cx, y - cy) / irr;
+    const re = Math.hypot(x - cx, y - cy) / (1 + 0.3 * (fbm(x / 6, y / 6, 9) - 0.5));
+    if (r < 6.5) t = T.core;
+    else if (r < 11) t = T.rim;
+    else if (re < 30 && (t === T.wm)) t = T.edema;
+  }
+  return t;
+}
+
+let FRAC = null;   // Float32Array per tissue, N*N
+let TEX = null;    // fine texture multiplier
+let LABEL = null;  // dominant tissue
+function buildPhantom(path) {
+  FRAC = Array.from({ length: NT }, () => new Float32Array(N * N));
+  LABEL = new Uint8Array(N * N);
+  TEX = new Float32Array(N * N);
+  const SS = 3, w = 1 / (SS * SS);
+  const cnt = new Float32Array(NT);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    cnt.fill(0);
+    for (let sj = 0; sj < SS; sj++) for (let si = 0; si < SS; si++) {
+      const x = (i + (si + 0.5) / SS) * PX - PH_MM / 2;
+      const y = (j + (sj + 0.5) / SS) * PX - PH_MM / 2;
+      cnt[tissueAt(x, y, path)] += w;
+    }
+    const k = j * N + i;
+    let best = 0;
+    for (let t = 0; t < NT; t++) { FRAC[t][k] = cnt[t]; if (cnt[t] > cnt[best]) best = t; }
+    LABEL[k] = best;
+    const x = i * PX - PH_MM / 2, y = j * PX - PH_MM / 2;
+    TEX[k] = 1 + 0.07 * (vnoise(x / 1.6, y / 1.6, 21) - 0.5) + 0.05 * (vnoise(x / 6, y / 6, 22) - 0.5);
+  }
+}
+
+
+/* ============================================================
+   Real anatomy: ICBM152 2009c tissue fractions (3 mm slabs)
+   ============================================================ */
+let ATLAS = null; // { meta, data: Uint8Array, ox, oy }
+const CH_TISSUE = { gm: "gm", wm: "wm", csf: "csf", fat: "fat", bone: "bone", musc: "musc" };
+async function loadAtlas() {
+  const meta = await (await fetch("phantom.json")).json();
+  // gzip-compressed tissue fractions, stored as base64 text
+  const b64 = (await (await fetch("phantom.b64.txt")).text()).trim();
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  let data = buf;
+  if (buf[0] === 0x1f && buf[1] === 0x8b) {
+    const ds = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
+    data = new Uint8Array(await new Response(ds).arrayBuffer());
+  }
+  const expect = meta.w * meta.h * meta.channels.length * meta.slabs.length;
+  if (data.length !== expect) throw new Error("phantom size mismatch");
+  // place the cropped volume in the N×N frame, centred
+  return { meta, data, ox: Math.floor((N - meta.w) / 2), oy: Math.floor((N - meta.h) / 2) };
+}
+// frame pixel -> patient mm (RAS: x+ = patient right, y+ = anterior)
+function pixToMM(i, j) {
+  const m = ATLAS.meta;
+  return [m.x_left - (i - ATLAS.ox), m.y_top - (j - ATLAS.oy)];
+}
+
+// 3D lesions in MNI space: [x, y, z, rx, ry, rz]
+const MS_PLAQUES = [
+  [-22, 10, 22, 3, 4, 7], [24, -30, 20, 3.5, 4, 6], [-26, -40, 14, 3, 4, 5], [18, 20, 28, 2.5, 3.5, 6],
+  [-28, -12, 34, 3, 3.5, 5], [27, 2, 40, 2.5, 3, 4], [-38, 22, 30, 2.5, 2.5, 3], [7, 8, 21, 2.5, 3, 3],
+  [16, -44, -30, 3, 3, 4], [-6, -27, -30, 2.5, 2.5, 3], [30, -55, 8, 3, 4, 4], [-14, 30, 12, 2.5, 3, 4],
+];
+const TUMOR = { x: 30, y: 26, z: 24, core: 7, rim: 11.5, edema: 32 };
+function smoothIn(d, edge) { // 1 inside (d<1), 0 outside, soft edge in normalized units
+  return d <= 1 - edge ? 1 : d >= 1 + edge ? 0 : 0.5 - (d - 1) / (2 * edge);
+}
+function applyPathology(frac, k, x, y, z, path) {
+  // frac: per-tissue fractions at pixel k for one slab (modified in place)
+  if (path === "ms") {
+    for (const p of MS_PLAQUES) {
+      const dx = (x - p[0]) / p[3], dy = (y - p[1]) / p[4], dz = (z - p[2]) / p[5];
+      if (Math.abs(dx) > 1.4 || Math.abs(dy) > 1.4 || Math.abs(dz) > 1.4) continue;
+      const m = smoothIn(Math.sqrt(dx * dx + dy * dy + dz * dz), 0.25);
+      const take = frac[T.wm] * m;
+      frac[T.wm] -= take; frac[T.ms] += take;
+    }
+  } else if (path === "tumor") {
+    const dx = x - TUMOR.x, dy = y - TUMOR.y, dz = z - TUMOR.z;
+    const r0 = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r0 > TUMOR.edema + 8) return;
+    const az = Math.atan2(dy, dx), el = Math.atan2(dz, Math.hypot(dx, dy));
+    const irr = 1 + 0.12 * Math.sin(3 * az + 1) * Math.cos(el) + 0.08 * Math.sin(5 * az + 2 * el);
+    const r = r0 / irr;
+    const brain = frac[T.gm] + frac[T.wm] + frac[T.csf];
+    const mCore = smoothIn(r / TUMOR.core, 0.12), mRim = smoothIn(r / TUMOR.rim, 0.08) - mCore;
+    if (mCore + mRim > 0) {
+      const keep = 1 - mCore - mRim;
+      frac[T.gm] *= keep; frac[T.wm] *= keep; frac[T.csf] *= keep;
+      frac[T.core] += brain * mCore; frac[T.rim] += brain * mRim;
+    }
+    // edema spreads along white matter, sparing cortex
+    const re = r0 / (1 + 0.3 * (fbm(x / 7, y / 7 + z / 9, 9) - 0.5));
+    const mE = smoothIn(re / TUMOR.edema, 0.15) * (1 - mCore - mRim);
+    if (mE > 0) { const take = frac[T.wm] * mE; frac[T.wm] -= take; frac[T.edema] += take; }
+  }
+}
+
+function buildAtlasSlice(zc, thk, path) {
+  const m = ATLAS.meta, W = m.w, H = m.h, C = m.channels.length, D = ATLAS.data;
+  FRAC = Array.from({ length: NT }, () => new Float32Array(N * N));
+  LABEL = new Uint8Array(N * N);
+  if (!TEX) {
+    TEX = new Float32Array(N * N);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++)
+      TEX[j * N + i] = 1 + 0.05 * (vnoise(i / 1.6, j / 1.6, 21) - 0.5) + 0.04 * (vnoise(i / 6, j / 6, 22) - 0.5);
+  }
+  // slab weights = overlap of the slice profile [zc-thk/2, zc+thk/2] with each 3 mm slab
+  const half = thk / 2, ws = [];
+  m.slabs.forEach((zs, si) => {
+    const ov = Math.min(zc + half, zs + m.dz / 2) - Math.max(zc - half, zs - m.dz / 2);
+    if (ov > 0) ws.push([si, ov, zs]);
+  });
+  if (!ws.length) { // outside the stored range: nearest slab
+    let best = 0; m.slabs.forEach((zs, si) => { if (Math.abs(zs - zc) < Math.abs(m.slabs[best] - zc)) best = si; });
+    ws.push([best, 1, m.slabs[best]]);
+  }
+  const wsum = ws.reduce((a, w) => a + w[1], 0);
+  const chT = m.channels.map(c => T[CH_TISSUE[c]]);
+  const f = new Float32Array(NT);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const k = (j + ATLAS.oy) * N + (i + ATLAS.ox);
+    const [x, y] = pixToMM(i + ATLAS.ox, j + ATLAS.oy);
+    for (const [si, w, zs] of ws) {
+      f.fill(0);
+      const base = si * C * W * H + j * W + i;
+      let any = 0;
+      for (let c = 0; c < C; c++) { const v = D[base + c * W * H]; if (v) { f[chT[c]] = v / 255; any = 1; } }
+      if (!any) continue;
+      if (path !== "none") applyPathology(f, k, x, y, zs, path);
+      const ww = w / wsum;
+      for (let t = 0; t < NT; t++) if (f[t]) FRAC[t][k] += f[t] * ww;
+    }
+    let best = 0, bv = 0;
+    for (let t = 1; t < NT; t++) if (FRAC[t][k] > bv) { bv = FRAC[t][k]; best = t; }
+    LABEL[k] = bv > 0.05 ? best : 0;
+  }
+}
+function rebuildPhantom() {
+  if (ATLAS) buildAtlasSlice(P.Z, P.THK, P.path);
+  else buildPhantom(P.path);
+}
+
+/* ============================================================
+   FFT (radix-2, in place)
+   ============================================================ */
+function fft1(re, im, inv) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (inv ? 2 : -2) * Math.PI / len;
+    const wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = a + len / 2;
+        const xr = re[b] * cr - im[b] * ci, xi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - xr; im[b] = im[a] - xi;
+        re[a] += xr; im[a] += xi;
+        const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t;
+      }
+    }
+  }
+}
+const rowR = new Float64Array(N), rowI = new Float64Array(N);
+function fft2(re, im, inv) {
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) { rowR[i] = re[j * N + i]; rowI[i] = im[j * N + i]; }
+    fft1(rowR, rowI, inv);
+    for (let i = 0; i < N; i++) { re[j * N + i] = rowR[i]; im[j * N + i] = rowI[i]; }
+  }
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) { rowR[j] = re[j * N + i]; rowI[j] = im[j * N + i]; }
+    fft1(rowR, rowI, inv);
+    for (let j = 0; j < N; j++) { re[j * N + i] = rowR[j]; im[j * N + i] = rowI[j]; }
+  }
+  if (inv) { const s = 1 / (N * N); for (let k = 0; k < N * N; k++) { re[k] *= s; im[k] *= s; } }
+}
+
+/* ============================================================
+   Parameters & state
+   ============================================================ */
+const MATS = [64, 128, 192, 224, 256];
+const P = {
+  field: "1.5", seq: "SE", TR: 500, TE: 15, TI: 900, FA: 70, ETL: 16,
+  NEX: 1, NX: 4, NY: 4, FOV: 240, THK: 5, BW: 32, pdir: "AP",
+  fatsat: false, gd: false, MOT: 0, path: "none", psir: false, Z: 12, kacq: "full", krecon: "all", KR: 12,
+};
+const P_DEFAULT = JSON.parse(JSON.stringify(P));
+const SEQ_DESC = {
+  SE: "Spin echo: a 90° pulse, then a 180° refocusing pulse that cancels static field inhomogeneity, so decay follows true T2.",
+  FSE: "Fast (turbo) spin echo: several 180° echoes per TR fill several k-space lines, so the scan is ETL times faster. Fat stays bright because of J-coupling.",
+  IR: "Inversion recovery: a 180° inversion pulse, then a wait of TI, then a spin-echo readout. Tissues pass through zero while recovering, which lets you null one tissue.",
+  GRE: "Spoiled gradient echo: a partial flip angle and no 180° pulse, so TR can be short. Decay follows T2*, and the flip angle controls T1 weighting.",
+};
+const fi = () => (P.field === "3" ? 1 : 0);
+const B0 = () => parseFloat(P.field);
+
+function tissueProps(t) {
+  const d = TISSUES[t], f = fi();
+  let T1 = d.t1[f], T2 = d.t2[f], T2s = d.t2s[f];
+  if (d.gd && P.gd) { const r1 = f ? 3.5 : 4.0; T1 = 1 / (1 / T1 + r1 * 0.45 / 1000); T2 *= 0.85; }
+  if (t === T.fat && P.seq === "FSE") T2 *= 1.8;
+  return { PD: d.pd, T1, T2, T2s };
+}
+// Signed signal for each tissue
+function tissueSignals() {
+  const s = new Float64Array(NT);
+  for (let t = 0; t < NT; t++) s[t] = signalFor(t);
+  return s;
+}
+function signalFor(t) {
+  const { PD, T1, T2, T2s } = tissueProps(t);
+  const E1 = Math.exp(-P.TR / T1);
+  let v;
+  if (P.seq === "SE" || P.seq === "FSE") v = PD * (1 - E1) * Math.exp(-P.TE / T2);
+  else if (P.seq === "IR") v = PD * (1 - 2 * Math.exp(-P.TI / T1) + E1) * Math.exp(-P.TE / T2);
+  else {
+    const a = P.FA * Math.PI / 180;
+    v = PD * Math.sin(a) * (1 - E1) / (1 - Math.cos(a) * E1) * Math.exp(-P.TE / T2s);
+  }
+  if (t === T.fat && P.fatsat) v *= 0.06;
+  return v;
+}
+const SPIKES = []; // [{ku, kv, ph}] signed k-space indices on the display grid
+function acqFraction() { return P.kacq === "pf" ? 0.625 : P.kacq === "r2" ? 0.5 : 1; }
+function snrRel() {
+  const nx = MATS[P.NX], ny = MATS[P.NY];
+  const vox = (P.FOV / nx) * (P.FOV / ny) * P.THK;
+  const vox0 = (240 / 256) * (240 / 256) * 5;
+  return (vox / vox0) * Math.sqrt((ny * acqFraction() * P.NEX) / 256) * Math.sqrt(32 / P.BW) * (B0() / 1.5);
+}
+function scanTimeSec() {
+  const ny = MATS[P.NY];
+  let t = P.TR * ny * acqFraction() * P.NEX / 1000;
+  if (P.seq === "FSE" || P.seq === "IR") t /= (P.seq === "IR" ? irEtl() : P.ETL);
+  return t;
+}
+function irEtl() { return P.TE >= 60 ? P.ETL : 1; } // long-TE IR uses an FSE readout (e.g. FLAIR)
+function fatShiftPx() {
+  const hz = 3.5e-6 * 42.577e6 * B0();
+  const bwPerPx = (P.BW * 1000) / MATS[P.NX];
+  return hz / bwPerPx;
+}
+
+/* ============================================================
+   Rendering pipeline
+   ============================================================ */
+const baseImg = new Float32Array(N * N), fatImg = new Float32Array(N * N);
+const kRe = new Float64Array(N * N), kIm = new Float64Array(N * N);
+let lastDisp = new Float32Array(N * N);
+const win = { auto: true, W: 1, L: 0.5 };
+let randState = 1;
+function rnd() { randState = (randState * 1664525 + 1013904223) >>> 0; return randState / 4294967296; }
+function gauss() { let u = 0, v = 0; while (u === 0) u = Math.random(); v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function seededGauss() { let u = rnd() || 1e-9, v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+function bilinear(img, fx, fy) {
+  // fx, fy in phantom pixel coords (pixel centers at i+0.5)
+  const x = fx - 0.5, y = fy - 0.5;
+  const ix = Math.floor(x), iy = Math.floor(y);
+  if (ix < -1 || iy < -1 || ix >= N || iy >= N) return 0;
+  const ax = x - ix, ay = y - iy;
+  const g = (i, j) => (i < 0 || j < 0 || i >= N || j >= N) ? 0 : img[j * N + i];
+  return (g(ix, iy) * (1 - ax) + g(ix + 1, iy) * ax) * (1 - ay) + (g(ix, iy + 1) * (1 - ax) + g(ix + 1, iy + 1) * ax) * ay;
+}
+
+function render() {
+  if (!FRAC) return;
+  const sig = tissueSignals();
+  // 1. signal maps on phantom grid (fat separate for chemical shift)
+  for (let k = 0; k < N * N; k++) {
+    let v = 0;
+    for (let t = 0; t < NT; t++) if (t !== T.fat) { const f = FRAC[t][k]; if (f) v += f * sig[t]; }
+    baseImg[k] = v * TEX[k];
+    fatImg[k] = FRAC[T.fat][k] * sig[T.fat] * TEX[k];
+  }
+  // 2. resample into FOV grid with phase wrap + fat shift
+  const FOV = P.FOV, pAP = P.pdir === "AP";
+  const shiftMm = fatShiftPx() * FOV / MATS[P.NX];
+  const fsx = pAP ? shiftMm : 0, fsy = pAP ? 0 : shiftMm; // frequency axis is the other one
+  const toPh = mm => (mm + PH_MM / 2) / PX;
+  for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) {
+    const xm = (u + 0.5) / N * FOV - FOV / 2, ym = (v + 0.5) / N * FOV - FOV / 2;
+    let s = 0;
+    for (let w = -2; w <= 2; w++) {
+      const xx = pAP ? xm : xm + w * FOV, yy = pAP ? ym + w * FOV : ym;
+      if (Math.abs(xx) > PH_MM / 2 + 2 || Math.abs(yy) > PH_MM / 2 + 2) continue;
+      s += bilinear(baseImg, toPh(xx), toPh(yy));
+      s += bilinear(fatImg, toPh(xx - fsx), toPh(yy - fsy));
+    }
+    kRe[v * N + u] = s; kIm[v * N + u] = 0;
+  }
+  // 3. to k-space
+  fft2(kRe, kIm, false);
+  const nx = MATS[P.NX], ny = MATS[P.NY];
+  const nFreq = pAP ? nx : ny, nPh = pAP ? ny : nx; // along u / v grid axes
+  const nU = pAP ? nx : ny, nV = pAP ? ny : nx;
+  const sgn = k => (k < N / 2 ? k : k - N);
+  const keepWin = (k, n) => { const s = sgn(k); return s >= -n / 2 && s < n / 2; };
+  // acquisition mask on phase-encode lines
+  const acqLine = line => {
+    const s = sgn(line);
+    if (P.kacq === "pf") return s >= -Math.round(nPh / 8);       // 5/8: lines from -1/8 to +1/2
+    if (P.kacq === "r2") return ((s % 2) + 2) % 2 === 0;           // every other line
+    return true;
+  };
+  const keep = (u, v) => keepWin(u, nU) && keepWin(v, nV) && acqLine(pAP ? v : u);
+  let nKept = 0;
+  for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) if (keep(u, v)) nKept++;
+  const sigmaImg = 0.0105 / snrRel();
+  const sigmaK = sigmaImg * N * N / Math.sqrt(Math.max(1, nKept));
+  // motion: one random displacement per phase-encode line
+  randState = 12345;
+  const disp = new Float64Array(N);
+  for (let l = 0; l < N; l++) disp[l] = P.MOT * seededGauss() * 0.6;
+  for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) {
+    const k = v * N + u;
+    if (!keep(u, v)) { kRe[k] = 0; kIm[k] = 0; continue; }
+    if (P.MOT > 0) {
+      const line = pAP ? v : u;
+      const kph = (line < N / 2 ? line : line - N);
+      const ph = -2 * Math.PI * kph * disp[line] / FOV;
+      const c = Math.cos(ph), s = Math.sin(ph);
+      const r = kRe[k] * c - kIm[k] * s; kIm[k] = kRe[k] * s + kIm[k] * c; kRe[k] = r;
+    }
+    kRe[k] += sigmaK * gauss(); kIm[k] += sigmaK * gauss();
+  }
+  // spikes (bad data points), only where data was acquired
+  for (const sp of SPIKES) {
+    const u = (sp.ku + N) % N, v = (sp.kv + N) % N, k = v * N + u;
+    if (!keep(u, v)) continue;
+    const A = 0.035 * N * N;
+    kRe[k] += A * Math.cos(sp.ph); kIm[k] += A * Math.sin(sp.ph);
+  }
+  // display copy + reconstruction mask (center / edges)
+  captureK(nU, nV);
+  if (P.krecon !== "all") {
+    for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) {
+      if (!reconKeep(sgn(u), sgn(v), nU, nV)) { const k = v * N + u; kRe[k] = 0; kIm[k] = 0; }
+    }
+  }
+  fft2(kRe, kIm, true);
+  // 4. reconstruction
+  const real = P.seq === "IR" && P.psir;
+  const disp2 = lastDisp;
+  for (let k = 0; k < N * N; k++) disp2[k] = real ? kRe[k] : Math.hypot(kRe[k], kIm[k]);
+  // 5. window
+  if (win.auto && !document.getElementById("lockwin").checked) {
+    const sample = [];
+    for (let k = 0; k < N * N; k += 7) sample.push(real ? Math.abs(disp2[k]) : disp2[k]);
+    sample.sort((a, b) => a - b);
+    const hi = Math.max(sample[Math.floor(sample.length * 0.995)], 1e-6);
+    if (real) { win.W = 2 * hi; win.L = 0; } else { win.W = hi; win.L = hi / 2; }
+  }
+  draw();
+  drawK();
+  updateInfo(sig);
+  if (typeof quizOnRender === "function") quizOnRender(sig);
+}
+
+const cv = document.getElementById("img"), cx = cv.getContext("2d");
+const off = document.createElement("canvas"); off.width = N; off.height = N;
+const offx = off.getContext("2d"), idata = offx.createImageData(N, N);
+function draw() {
+  const lo = win.L - win.W / 2, sc = 255 / win.W;
+  const d = idata.data;
+  for (let k = 0; k < N * N; k++) {
+    let g = (lastDisp[k] - lo) * sc;
+    g = g < 0 ? 0 : g > 255 ? 255 : g;
+    d[4 * k] = d[4 * k + 1] = d[4 * k + 2] = g; d[4 * k + 3] = 255;
+  }
+  offx.putImageData(idata, 0, 0);
+  cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
+  cx.drawImage(off, 0, 0, cv.width, cv.height);
+}
+
+/* ============================================================
+   k-space viewer
+   ============================================================ */
+const kLog = new Float32Array(N * N); // log magnitude, fftshifted (display coords)
+let kNU = N, kNV = N;
+function reconKeep(su, sv, nU, nV) {
+  if (P.krecon === "all") return true;
+  const rho = Math.hypot(su / (nU / 2), sv / (nV / 2)); // 1 = edge of acquired matrix
+  const inC = rho < P.KR / 100;
+  return P.krecon === "center" ? inC : !inC;
+}
+function captureK(nU, nV) {
+  kNU = nU; kNV = nV;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const u = (x + N / 2) % N, v = (y + N / 2) % N, k = v * N + u;
+    const m = Math.hypot(kRe[k], kIm[k]);
+    kLog[y * N + x] = m > 0 ? Math.log10(m) : -99;
+  }
+}
+const kcv = document.getElementById("kcv"), kcx = kcv.getContext("2d");
+const kdata = kcx.createImageData(N, N);
+function drawK() {
+  let mx = -99;
+  for (let i = 0; i < N * N; i++) if (kLog[i] > mx) mx = kLog[i];
+  const lo = mx - 3.8, d = kdata.data;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x;
+    let g = (kLog[i] - lo) / (mx - lo);
+    g = g < 0 ? 0 : g > 1 ? 1 : Math.pow(g, 1.15);
+    const on = reconKeep(x - N / 2, y - N / 2, kNU, kNV);
+    const v = g * 255;
+    d[4 * i] = on ? v : v * 0.22; d[4 * i + 1] = on ? v : v * 0.26; d[4 * i + 2] = on ? v : v * 0.45; d[4 * i + 3] = 255;
+  }
+  kcx.putImageData(kdata, 0, 0);
+  // acquired matrix outline
+  kcx.strokeStyle = "rgba(57,135,229,0.8)"; kcx.lineWidth = 1; kcx.setLineDash([3, 3]);
+  kcx.strokeRect(N / 2 - kNU / 2 + 0.5, N / 2 - kNV / 2 + 0.5, kNU - 1, kNV - 1);
+  kcx.setLineDash([]);
+  for (const sp of SPIKES) {
+    kcx.strokeStyle = "#d95926"; kcx.lineWidth = 1.5;
+    kcx.beginPath(); kcx.arc(sp.ku + N / 2 + 0.5, sp.kv + N / 2 + 0.5, 4, 0, 7); kcx.stroke();
+  }
+  const pAP = P.pdir === "AP";
+  document.getElementById("kaxH").textContent = pAP ? "kx · frequency →" : "kx · phase →";
+  document.getElementById("kaxV").textContent = pAP ? "ky · phase →" : "ky · frequency →";
+  document.getElementById("krRow").classList.toggle("hidden", P.krecon === "all");
+  document.getElementById("o_KR").textContent = P.KR + "% of k-max";
+  const tips = [];
+  if (P.krecon === "all") tips.push("The center of k-space holds the low spatial frequencies, which set overall signal and contrast. The edges hold the high frequencies, which carry fine detail and sharp edges. Every k-space point contributes to every pixel in the image.");
+  if (P.krecon === "center") tips.push(`Only the central ${P.KR}% of k-space is used. Contrast and overall brightness survive, but fine detail is lost, so the image is blurry with ringing at edges.`);
+  if (P.krecon === "edges") tips.push(`The central ${P.KR}% of k-space is removed. Large areas of uniform signal disappear and only edges and outlines remain, so contrast information is gone.`);
+  if (P.kacq === "pf") tips.push("Partial Fourier: only 5/8 of the phase-encode lines are acquired, which saves 37.5% of scan time at a cost in SNR. Here the missing lines are zero-filled, which causes slight blurring in the phase direction. Scanners fill them using k-space conjugate symmetry (homodyne reconstruction).");
+  if (P.kacq === "r2") tips.push("Skipping every other phase line doubles the spacing between k-space lines, which halves the FOV in the phase direction. The image wraps onto itself (aliasing). Parallel imaging (SENSE, GRAPPA) uses coil sensitivity maps to unfold this. Scan time halves, and SNR drops by √2 or more.");
+  if (SPIKES.length) tips.push("Each spike is one corrupted data point, for example from static discharge. It adds a striped (herringbone) pattern across the entire image. Spikes farther from the center make finer stripes, and the stripes run perpendicular to the spike's direction from the center.");
+  document.getElementById("ktip").textContent = tips.join(" ");
+}
+function kCoords(e) {
+  const r = kcv.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / r.width * N), y = Math.floor((e.clientY - r.top) / r.height * N);
+  return [x - N / 2, y - N / 2];
+}
+kcv.addEventListener("mousemove", e => {
+  const [ku, kv] = kCoords(e);
+  const kr = Math.hypot(ku, kv);
+  const lam = kr > 0 ? (P.FOV / kr) : Infinity;
+  document.getElementById("kinfo").textContent =
+    `kx ${ku >= 0 ? "+" : ""}${ku}, ky ${kv >= 0 ? "+" : ""}${kv}  (${(kr / (N / 2) * 100).toFixed(0)}% of k-max)\n` +
+    (kr > 0 ? `${kr.toFixed(1)} cycles per FOV · wavelength ${lam.toFixed(1)} mm` : "DC term: average signal of the whole image");
+});
+kcv.addEventListener("mouseleave", () => { document.getElementById("kinfo").textContent = "Hover over k-space for frequency details.\nClick to add a spike."; });
+kcv.addEventListener("click", e => {
+  const [ku, kv] = kCoords(e);
+  SPIKES.push({ ku, kv, ph: Math.random() * 2 * Math.PI });
+  schedule();
+});
+document.getElementById("kclear").addEventListener("click", () => { SPIKES.length = 0; schedule(); });
+document.getElementById("kacq").addEventListener("change", e => { P.kacq = e.target.value; changed(); });
+document.querySelectorAll("#krecon button").forEach(b => b.addEventListener("click", () => {
+  P.krecon = b.dataset.v;
+  document.querySelectorAll("#krecon button").forEach(x => x.classList.toggle("on", x === b));
+  schedule();
+}));
+document.getElementById("KR").addEventListener("input", e => { P.KR = parseFloat(e.target.value); schedule(); });
+
+/* ============================================================
+   Info, weighting, plots, table
+   ============================================================ */
+function fmtTime(s) {
+  if (s < 60) return s.toFixed(s < 10 ? 1 : 0) + " s";
+  const m = Math.floor(s / 60), r = Math.round(s % 60);
+  return m + ":" + String(r).padStart(2, "0");
+}
+function nullTI(key) {
+  const { T1 } = tissueProps(T[key]);
+  return T1 * Math.log(2 / (1 + Math.exp(-P.TR / T1)));
+}
+function weighting(sig) {
+  const s = k => sig[T[k]];
+  const csf = Math.abs(s("csf")), wm = Math.abs(s("wm")), gm = Math.abs(s("gm")), fat = Math.abs(s("fat"));
+  const { seq, TR, TE, FA } = P;
+  if (seq === "IR") {
+    const mx = Math.max(csf, wm, gm, 1e-9);
+    if (csf < 0.12 * Math.max(wm, gm) && TE >= 60) return ["T2 FLAIR", "CSF is nulled because TI is near its zero-crossing, while the long TE keeps T2 weighting. Periventricular and cortical lesions stand out against dark CSF instead of hiding next to bright fluid."];
+    if (fat < 0.12 * mx && P.TI < 400) return ["STIR (fat-suppressed)", "The short TI nulls fat, the tissue with the shortest T1. Unlike chemical fat sat, STIR suppresses anything with a T1 like fat's, including gadolinium-enhanced tissue, so it shouldn't be used after contrast."];
+    if (wm < 0.12 * mx) return ["WM-nulled IR", "TI is set to null white matter, which gives very strong gray–white contrast. This is used for cortical malformations and for seeing deep gray nuclei."];
+    if (P.TI > 400 && P.TI < 1500 && TE < 40) return ["T1-weighted IR", "Inversion expands the T1 dynamic range: tissues start from −Mz, so differences in T1 are about twice as large as in spin echo. Gray–white contrast is strong."];
+    return ["Inversion recovery", "Contrast depends on where each tissue is on its recovery curve at TI. Use the Null buttons to hit a zero-crossing. With magnitude reconstruction, tissues that haven't crossed zero yet appear bright again."];
+  }
+  if (seq === "GRE") {
+    const ernst = Math.acos(Math.exp(-TR / tissueProps(T.wm).T1)) * 180 / Math.PI;
+    if (FA >= 40 && TE < 10) return ["T1-weighted GRE", `A large flip angle saturates long-T1 tissues, which gives T1 weighting even at short TR. The Ernst angle for WM at this TR is ${ernst.toFixed(0)}°.`];
+    if (FA <= 30 && TE >= 15) return ["T2*-weighted GRE", "A small flip angle removes T1 weighting, and the long TE with no 180° pulse lets T2* decay dominate. This is sensitive to blood products, calcium and iron (susceptibility)."];
+    if (FA <= 30) return ["PD-weighted GRE", `A small flip angle and short TE minimize both T1 and T2* effects. The Ernst angle for WM at this TR is ${ernst.toFixed(0)}°.`];
+    return ["Mixed GRE contrast", `Intermediate flip angle and TE. The Ernst angle for WM at this TR is ${ernst.toFixed(0)}°.`];
+  }
+  const fsetxt = seq === "FSE" ? " With FSE, fat stays relatively bright." : "";
+  if (TR <= 900 && TE <= 30) return ["T1-weighted", "Short TR lets tissues with short T1 (fat, WM) recover more than long-T1 tissues (CSF), and short TE keeps T2 effects small. White matter is brighter than gray matter, and CSF is dark." + fsetxt];
+  if (TR >= 2000 && TE >= 70) return ["T2-weighted", "Long TR lets almost all tissues recover fully, which removes T1 differences. Long TE then lets short-T2 tissues decay. CSF and edema are bright, and WM is darker than GM." + fsetxt];
+  if (TR >= 2000 && TE <= 35) return ["Proton-density weighted", "Long TR removes T1 effects and short TE removes T2 effects, so signal mostly reflects how much hydrogen is present. Contrast is low, but SNR is high." + fsetxt];
+  if (TR <= 900 && TE >= 70) return ["Poor contrast (short TR, long TE)", "T1 and T2 weighting work against each other here: long-T1 tissues are dark from short TR, but bright from long T2. The image has little contrast and low signal. This combination isn't used clinically."];
+  return ["Intermediate weighting", "TR and TE are in a transitional range, so both T1 and T2 contribute to contrast."];
+}
+function updateInfo(sig) {
+  const st = scanTimeSec();
+  document.getElementById("stTime").textContent = fmtTime(st);
+  const nsl = Math.max(1, Math.floor(P.TR / (Math.max(P.TE, P.seq === "FSE" ? P.TE * 1.5 : P.TE) + (P.seq === "IR" ? P.TI : 0) + 12)));
+  document.getElementById("stTimeS").textContent = P.seq === "GRE" ? "per slice (2D)" : `up to ~${nsl} slices per TR`;
+  const snr = snrRel();
+  document.getElementById("stSNR").textContent = snr.toFixed(2) + "×";
+  const vx = P.FOV / MATS[P.NX], vy = P.FOV / MATS[P.NY];
+  document.getElementById("stVox").textContent = `${vx.toFixed(2)}×${vy.toFixed(2)}`;
+  document.getElementById("stVoxS").textContent = `× ${P.THK} mm = ${(vx * vy * P.THK).toFixed(1)} mm³`;
+  document.getElementById("stCS").textContent = fatShiftPx().toFixed(2);
+
+  const [tag, txt] = weighting(sig);
+  document.getElementById("wTag").textContent = tag;
+  document.getElementById("wText").textContent = txt;
+
+  const seqName = { SE: "SE", FSE: "FSE", IR: "IR", GRE: "SPGR" }[P.seq];
+  let tl = `${P.field} T  ${seqName}\nTR ${P.TR}  TE ${P.TE}`;
+  if (P.seq === "IR") tl += `  TI ${P.TI}`;
+  if (P.seq === "GRE") tl += `  FA ${P.FA}°`;
+  if (P.seq === "FSE" || (P.seq === "IR" && irEtl() > 1)) tl += `\nETL ${P.seq === "IR" ? irEtl() : P.ETL}`;
+  document.getElementById("ovTL").textContent = tl;
+  document.getElementById("ovTR").textContent = `${MATS[P.NX]}×${MATS[P.NY]}  NEX ${P.NEX}\nFOV ${P.FOV}  ${P.THK} mm\nBW ±${(P.BW / 2).toFixed(0)} kHz`;
+  document.getElementById("ovBL").textContent = `W ${(win.W * 1000).toFixed(0)}  L ${(win.L * 1000).toFixed(0)}${win.auto ? " (auto)" : ""}`;
+  document.getElementById("ovBR").textContent = `${ATLAS ? "Z " + (P.Z > 0 ? "+" : "") + P.Z + " mm\n" : ""}Phase ${P.pdir === "AP" ? "A–P" : "R–L"}\n${fmtTime(st)}`;
+
+  drawPlots();
+  drawTable(sig);
+}
+
+function seriesList() {
+  const L = SERIES.map(s => ({ ...s, t: T[s.key] }));
+  if (P.path === "ms") L.push({ key: "ms", t: T.ms, color: LESION_COLOR, label: "Plaque" });
+  if (P.path === "tumor") L.push({ key: "edema", t: T.edema, color: LESION_COLOR, label: "Edema" });
+  return L;
+}
+function setupCanvas(c) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = parseInt(c.getAttribute("height"));
+  if (c._w !== w || c._dpr !== dpr) { c.width = w * dpr; c.height = h * dpr; c.style.height = h + "px"; c._w = w; c._dpr = dpr; }
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  return { g, w, h };
+}
+function fmtTick(v) { return String(Math.round(v * 100) / 100); }
+function plot(c, opt, hoverX) {
+  c._opt = opt;
+  const { g, w, h } = setupCanvas(c);
+  const m = { l: 40, r: 66, t: 18, b: 26 };
+  const pw = w - m.l - m.r, ph = h - m.t - m.b;
+  const X = v => m.l + (v / opt.xmax) * pw;
+  const Y = v => m.t + (1 - (v - opt.ymin) / (opt.ymax - opt.ymin)) * ph;
+  c._geom = { m, pw, ph, X };
+  g.font = "11px system-ui, sans-serif";
+  g.strokeStyle = "#2e2d2a"; g.lineWidth = 1; g.fillStyle = "#8f8e86";
+  for (const yv of opt.yticks) {
+    g.beginPath(); g.moveTo(m.l, Y(yv) + .5); g.lineTo(m.l + pw, Y(yv) + .5); g.stroke();
+    g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(fmtTick(yv), m.l - 6, Y(yv));
+  }
+  if (opt.ymin < 0) { g.strokeStyle = "#55544f"; g.beginPath(); g.moveTo(m.l, Y(0) + .5); g.lineTo(m.l + pw, Y(0) + .5); g.stroke(); }
+  // x ticks: seconds when the range is long
+  const secs = opt.xmax >= 10000;
+  g.textAlign = "center"; g.textBaseline = "top"; g.fillStyle = "#8f8e86";
+  const step = niceStep(opt.xmax / 5);
+  for (let xv = 0; xv <= opt.xmax + 1e-6; xv += step) {
+    if (X(xv) > m.l + pw - 14 && xv > 0) continue;
+    g.fillText(secs ? fmtTick(xv / 1000) : String(Math.round(xv)), X(xv), m.t + ph + 6);
+  }
+  g.textAlign = "left"; g.fillStyle = "#c3c2b7"; g.fillText(secs ? "s" : "ms", m.l + pw + 6, m.t + ph + 6);
+  // clip data to the plot area
+  g.save(); g.beginPath(); g.rect(m.l, m.t - 4, pw, ph + 8); g.clip();
+  for (const mk of opt.markers) {
+    if (mk.x > opt.xmax) continue;
+    g.strokeStyle = "#c3c2b7"; g.lineWidth = 1; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(X(mk.x) + .5, m.t); g.lineTo(X(mk.x) + .5, m.t + ph); g.stroke(); g.setLineDash([]);
+  }
+  const labels = [];
+  for (const s of opt.series) {
+    g.strokeStyle = s.color; g.lineWidth = 2; g.beginPath();
+    const n = Math.max(200, Math.round(pw));
+    for (let i = 0; i <= n; i++) { const xv = opt.xmax * i / n, yv = s.f(xv); i ? g.lineTo(X(xv), Y(yv)) : g.moveTo(X(xv), Y(yv)); }
+    g.stroke();
+    labels.push({ y: Y(s.f(opt.xmax)), text: s.label, color: s.color });
+  }
+  if (opt.dotAt != null && opt.dotAt <= opt.xmax) for (const s of opt.series) {
+    g.fillStyle = s.color; g.strokeStyle = "#1a1a19"; g.lineWidth = 2;
+    g.beginPath(); g.arc(X(opt.dotAt), Y(s.f(opt.dotAt)), 4, 0, 7); g.fill(); g.stroke();
+  }
+  g.restore();
+  // marker labels above the plot area, so they never sit on a curve
+  for (const mk of opt.markers) {
+    g.textAlign = "center"; g.textBaseline = "bottom"; g.fillStyle = "#f0efec";
+    if (mk.x > opt.xmax) { g.textAlign = "right"; g.fillText(mk.label + " →", m.l + pw, m.t - 4); }
+    else g.fillText(mk.label, Math.min(m.l + pw - 20, Math.max(m.l + 20, X(mk.x))), m.t - 4);
+  }
+  // direct labels at right edge, de-collided
+  labels.sort((a, b) => a.y - b.y);
+  const top = m.t + 2, bot = m.t + ph - 2;
+  for (const lb of labels) lb.y = Math.min(bot, Math.max(top, lb.y));
+  for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 12) labels[i].y = labels[i - 1].y + 12;
+  const over = labels.length ? labels[labels.length - 1].y - bot : 0;
+  if (over > 0) for (const lb of labels) lb.y -= over;
+  for (let i = labels.length - 2; i >= 0; i--) if (labels[i + 1].y - labels[i].y < 12) labels[i].y = labels[i + 1].y - 12;
+  g.textAlign = "left"; g.textBaseline = "middle";
+  for (const lb of labels) {
+    g.fillStyle = lb.color; g.fillRect(m.l + pw + 6, lb.y - 4, 8, 8);
+    g.fillStyle = "#c3c2b7"; g.fillText(lb.text, m.l + pw + 17, lb.y);
+  }
+  // hover crosshair + tooltip
+  if (hoverX != null && hoverX >= 0 && hoverX <= opt.xmax) {
+    const hx = X(hoverX);
+    g.strokeStyle = "rgba(240,239,236,0.5)"; g.lineWidth = 1; g.beginPath(); g.moveTo(hx + .5, m.t); g.lineTo(hx + .5, m.t + ph); g.stroke();
+    const rows = opt.series.map(s => ({ s, v: s.f(hoverX) })).sort((a, b) => b.v - a.v);
+    for (const r of rows) { g.fillStyle = r.s.color; g.strokeStyle = "#1a1a19"; g.lineWidth = 2; g.beginPath(); g.arc(hx, Y(r.v), 3.5, 0, 7); g.fill(); g.stroke(); }
+    const lines = [`t = ${Math.round(hoverX)} ms`, ...rows.map(r => `${r.s.label}  ${r.v.toFixed(3)}`)];
+    g.font = "11px ui-monospace, Menlo, Consolas, monospace";
+    const tw = Math.max(...lines.map(l => g.measureText(l).width)) + 22, th = lines.length * 14 + 8;
+    let tx = hx + 10; if (tx + tw > m.l + pw) tx = hx - 10 - tw;
+    const ty = m.t + 4;
+    g.fillStyle = "rgba(26,26,25,0.94)"; g.strokeStyle = "#34332f"; g.lineWidth = 1;
+    g.beginPath(); g.roundRect ? g.roundRect(tx, ty, tw, th, 5) : g.rect(tx, ty, tw, th); g.fill(); g.stroke();
+    g.textAlign = "left"; g.textBaseline = "top";
+    lines.forEach((l, i) => {
+      if (i > 0) { g.fillStyle = rows[i - 1].s.color; g.fillRect(tx + 7, ty + 6 + i * 14 + 2, 8, 8); }
+      g.fillStyle = i ? "#f0efec" : "#c3c2b7"; g.fillText(l, tx + (i ? 19 : 7), ty + 5 + i * 14);
+    });
+  }
+}
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))); const f = x / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
+
+const ZOOM = { mz: { mode: "default", k: 1 }, mxy: { mode: "default", k: 1 } };
+function plotRange(which, def, full, lo, hi) {
+  const z = ZOOM[which];
+  const base = z.mode === "full" ? full : def;
+  return Math.min(hi, Math.max(lo, base * z.k));
+}
+function drawPlots() {
+  const ser = seriesList();
+  const leg = ser.map(s => `<span style="--c:${s.color}">${s.label}</span>`).join("");
+  document.getElementById("legend1").innerHTML = leg;
+  document.getElementById("legend2").innerHTML = leg;
+  const isIR = P.seq === "IR", isGRE = P.seq === "GRE";
+  // Mz plot
+  const tEx = isIR ? P.TI : P.TR;
+  const maxT1 = Math.max(...ser.map(s => tissueProps(s.t).T1));
+  const xmax1 = plotRange("mz", Math.max(5000, tEx * 1.3), Math.max(maxT1 * 4.6, tEx * 1.1), 50, 60000);
+  const mzSeries = ser.map(s => {
+    const { PD, T1 } = tissueProps(s.t);
+    const fs = s.key === "fat" && P.fatsat ? 0.06 : 1;
+    const E1 = Math.exp(-P.TR / T1);
+    return { ...s, f: isIR ? (t => PD * fs * (1 - (2 - E1) * Math.exp(-t / T1))) : (t => PD * fs * (1 - Math.exp(-t / T1))) };
+  });
+  document.getElementById("mzTitle").textContent = isIR ? "Longitudinal recovery after inversion (Mz × PD)" : "Longitudinal recovery during TR (Mz × PD)";
+  plot(document.getElementById("plotMz"), {
+    xmax: xmax1, ymin: isIR ? -1.05 : 0, ymax: 1.05, yticks: isIR ? [-1, -0.5, 0, 0.5, 1] : [0, 0.25, 0.5, 0.75, 1],
+    series: mzSeries, markers: [{ x: tEx, label: isIR ? `TI ${P.TI}` : `TR ${P.TR}` }], dotAt: tEx,
+  });
+  document.getElementById("mzTip").textContent = isIR
+    ? "Each tissue starts inverted and recovers along its own T1 curve. The value at TI is what gets excited. Where a curve crosses zero, that tissue is nulled."
+    : (isGRE ? "Simplified, ignoring the flip angle. At short TR, long-T1 tissues haven't recovered much, which is the source of T1 weighting. A larger flip angle makes this effect stronger."
+      : "The gap between curves at TR is the T1 contrast. As TR gets longer, the curves converge and T1 weighting disappears.");
+  // Mxy plot
+  const maxT2 = Math.max(...ser.map(s => { const pr = tissueProps(s.t); return isGRE ? pr.T2s : pr.T2; }));
+  const xmax2 = plotRange("mxy", Math.max(300, P.TE * 2.5), Math.max(maxT2 * 4.6, P.TE * 1.1), 10, 15000);
+  const mxySeries = ser.map(s => {
+    const pr = tissueProps(s.t);
+    const start = Math.abs(signalFor(s.t)) / Math.exp(-P.TE / (isGRE ? pr.T2s : pr.T2));
+    const T2 = isGRE ? pr.T2s : pr.T2;
+    return { ...s, f: t => start * Math.exp(-t / T2) };
+  });
+  const ymax2 = Math.max(0.2, ...mxySeries.map(s => s.f(0))) * 1.05;
+  const yt = []; const st2 = niceStep(ymax2 / 4); for (let v = 0; v <= ymax2; v += st2) yt.push(v);
+  document.getElementById("mxyTitle").textContent = isGRE ? "Transverse decay after excitation (T2*)" : "Transverse decay after excitation (T2)";
+  plot(document.getElementById("plotMxy"), {
+    xmax: xmax2, ymin: 0, ymax: ymax2, yticks: yt, series: mxySeries,
+    markers: [{ x: P.TE, label: `TE ${P.TE}` }], dotAt: P.TE,
+  });
+  document.getElementById("mxyTip").textContent = "Each curve starts at the magnetization available at excitation and decays with T2" + (isGRE ? "*" : "") + ". The dots at TE are the signal in the image. When curves cross, the contrast reverses.";
+}
+function drawTable(sig) {
+  const rows = ATLAS ? [T.csf, T.gm, T.wm, T.fat, T.musc] : [T.csf, T.gm, T.wm, T.dgm, T.fat, T.musc];
+  if (P.path === "ms") rows.push(T.ms);
+  if (P.path === "tumor") rows.push(T.edema, T.rim, T.core);
+  const colorOf = t => { const s = seriesList().find(s => s.t === t); return s ? s.color : "#55544f"; };
+  const mx = Math.max(...rows.map(t => Math.abs(sig[t])), 1e-9);
+  let h = `<tr><th>Tissue</th><th>T1</th><th>T2${P.seq === "GRE" ? "*" : ""}</th><th>PD</th><th>Signal</th><th>Rel.</th></tr>`;
+  for (const t of rows) {
+    const pr = tissueProps(t);
+    const v = P.seq === "IR" && !P.psir ? Math.abs(sig[t]) : sig[t];
+    h += `<tr><td><span class="sw" style="background:${colorOf(t)}"></span>${TISSUES[t].name}</td><td>${Math.round(pr.T1)}</td><td>${Math.round(P.seq === "GRE" ? pr.T2s : pr.T2)}</td><td>${pr.PD.toFixed(2)}</td><td>${v.toFixed(3)}</td><td>${Math.round(100 * Math.abs(sig[t]) / mx)}%</td></tr>`;
+  }
+  const c = (a, b) => (Math.abs(sig[a]) - Math.abs(sig[b])) / (Math.abs(sig[a]) + Math.abs(sig[b]) + 1e-9);
+  h += `<tr><td colspan="6" style="text-align:left;color:var(--text-muted);font-size:11.5px;padding-top:8px">Contrast (Michelson): WM vs GM ${c(T.wm, T.gm).toFixed(2)} · CSF vs WM ${c(T.csf, T.wm).toFixed(2)}${P.path === "ms" ? " · plaque vs WM " + c(T.ms, T.wm).toFixed(2) : ""}${P.path === "tumor" ? " · edema vs WM " + c(T.edema, T.wm).toFixed(2) : ""}</td></tr>`;
+  document.getElementById("tbl").innerHTML = h;
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+const sliders = ["TR", "TE", "TI", "FA", "ETL", "NEX", "NX", "NY", "FOV", "THK", "BW", "MOT", "Z"];
+const fmt = {
+  TR: v => v + " ms", TE: v => v + " ms", TI: v => v + " ms", FA: v => v + "°", ETL: v => v,
+  NEX: v => v, NX: v => MATS[v], NY: v => MATS[v], FOV: v => v + " mm", THK: v => v + " mm",
+  Z: v => (v > 0 ? "+" : "") + v + " mm", BW: v => `±${v / 2} kHz (${Math.round(v * 1000 / MATS[P.NX])} Hz/px)`, MOT: v => v == 0 ? "none" : v + " mm",
+};
+function syncUI() {
+  for (const id of sliders) {
+    const el = document.getElementById(id); el.value = P[id];
+    document.getElementById("o_" + id).textContent = fmt[id](P[id]);
+  }
+  document.querySelectorAll("#field button").forEach(b => b.classList.toggle("on", b.dataset.v === P.field));
+  document.querySelectorAll("#seq button").forEach(b => b.classList.toggle("on", b.dataset.v === P.seq));
+  document.querySelectorAll("#pdir button").forEach(b => b.classList.toggle("on", b.dataset.v === P.pdir));
+  document.querySelectorAll(".row.ir").forEach(r => r.classList.toggle("hidden", P.seq !== "IR"));
+  document.querySelectorAll(".row.gre").forEach(r => r.classList.toggle("hidden", P.seq !== "GRE"));
+  document.querySelectorAll(".row.fse").forEach(r => r.classList.toggle("hidden", !(P.seq === "FSE" || P.seq === "IR")));
+  document.getElementById("fatsat").checked = P.fatsat;
+  document.getElementById("gd").checked = P.gd;
+  document.getElementById("psir").checked = P.psir;
+  document.getElementById("path").value = P.path;
+  document.getElementById("kacq").value = P.kacq;
+  document.querySelectorAll("#krecon button").forEach(b => b.classList.toggle("on", b.dataset.v === P.krecon));
+  document.getElementById("KR").value = P.KR;
+  document.getElementById("seqDesc").textContent = SEQ_DESC[P.seq];
+  // TR range depends on sequence
+  document.getElementById("TR").min = P.seq === "GRE" ? 5 : 100;
+}
+function constrain() {
+  if (P.seq === "GRE") { P.TE = Math.min(P.TE, Math.max(2, P.TR - 2)); }
+  else { if (P.TE > P.TR - 5) P.TE = Math.max(2, P.TR - 5); if (P.TR < 100) P.TR = 100; }
+  if (P.seq === "IR" && P.TI > P.TR - P.TE - 10) P.TI = Math.max(20, P.TR - P.TE - 10);
+}
+let pending = false;
+function schedule() {
+  if (pending) return; pending = true;
+  requestAnimationFrame(() => { pending = false; render(); });
+}
+function changed() { constrain(); syncUI(); schedule(); }
+
+for (const id of sliders) {
+  document.getElementById(id).addEventListener("input", e => {
+    P[id] = parseFloat(e.target.value);
+    if (id === "Z" || (id === "THK" && ATLAS)) rebuildPhantom();
+    changed();
+  });
+}
+function segHandler(id, key, cb) {
+  document.querySelectorAll(`#${id} button`).forEach(b => b.addEventListener("click", () => { P[key] = b.dataset.v; if (cb) cb(); changed(); }));
+}
+segHandler("field", "field");
+segHandler("seq", "seq", () => {
+  // sensible defaults when switching sequence
+  const d = { SE: [500, 15], FSE: [4000, 100], IR: [9000, 120], GRE: [200, 4] }[P.seq];
+  [P.TR, P.TE] = d;
+  if (P.seq === "IR") P.TI = Math.round(nullTI("csf") / 10) * 10;
+  if (P.seq === "GRE") P.FA = 70;
+});
+segHandler("pdir", "pdir");
+document.getElementById("fatsat").addEventListener("change", e => { P.fatsat = e.target.checked; changed(); });
+document.getElementById("gd").addEventListener("change", e => { P.gd = e.target.checked; changed(); });
+document.getElementById("psir").addEventListener("change", e => { P.psir = e.target.checked; win.auto = true; changed(); });
+document.getElementById("lockwin").addEventListener("change", e => { if (!e.target.checked) win.auto = true; schedule(); });
+document.getElementById("path").addEventListener("change", e => {
+  P.path = e.target.value; rebuildPhantom();
+  if (P.path === "tumor") P.gd = P.gd; changed();
+});
+document.querySelectorAll("[data-null]").forEach(b => b.addEventListener("click", () => {
+  P.TI = Math.max(20, Math.round(nullTI(b.dataset.null) / 10) * 10); changed();
+}));
+document.getElementById("ernst").addEventListener("click", () => {
+  P.FA = Math.max(2, Math.round(Math.acos(Math.exp(-P.TR / tissueProps(T.wm).T1)) * 180 / Math.PI)); changed();
+});
+
+const PRESETS = [
+  { name: "T1 SE", p: { seq: "SE", TR: 500, TE: 15, fatsat: false } },
+  { name: "T2 FSE", p: { seq: "FSE", TR: 4000, TE: 100, ETL: 16, fatsat: false } },
+  { name: "PD FSE", p: { seq: "FSE", TR: 3000, TE: 25, ETL: 8, fatsat: false } },
+  { name: "T2 FLAIR", p: { seq: "IR", TR: 9000, TE: 120, ETL: 24, TI: "csf", psir: false } },
+  { name: "STIR", p: { seq: "IR", TR: 4000, TE: 60, ETL: 12, TI: "fat", psir: false } },
+  { name: "T1 IR (PSIR)", p: { seq: "IR", TR: 2500, TE: 12, TI: 800, psir: true } },
+  { name: "T1 SPGR", p: { seq: "GRE", TR: 200, TE: 4, FA: 70 } },
+  { name: "T2* GRE", p: { seq: "GRE", TR: 600, TE: 20, FA: 20 } },
+];
+const presetBox = document.getElementById("presets");
+for (const pr of PRESETS) {
+  const b = document.createElement("button"); b.textContent = pr.name;
+  b.addEventListener("click", () => {
+    const { TI, ...rest } = pr.p;
+    Object.assign(P, rest);
+    if (TI !== undefined) P.TI = typeof TI === "string" ? Math.round(nullTI(TI) / 10) * 10 : TI;
+    win.auto = true; changed();
+  });
+  presetBox.appendChild(b);
+}
+
+/* --- window/level drag & hover --- */
+let drag = null;
+cv.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, W: win.W, L: win.L }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", e => {
+  if (drag) {
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    win.auto = false;
+    win.W = Math.max(1e-4, drag.W * Math.exp(dx / 200));
+    win.L = drag.L - dy * drag.W / 300;
+    draw();
+    document.getElementById("ovBL").textContent = `W ${(win.W * 1000).toFixed(0)}  L ${(win.L * 1000).toFixed(0)}`;
+  }
+  hover(e);
+});
+cv.addEventListener("pointerup", () => { drag = null; });
+cv.addEventListener("dblclick", () => { win.auto = true; document.getElementById("lockwin").checked = false; schedule(); });
+cv.addEventListener("pointerleave", () => { if (!drag) updateHoverText(null); });
+function hover(e) {
+  const r = cv.getBoundingClientRect();
+  const u = Math.floor((e.clientX - r.left) / r.width * N), v = Math.floor((e.clientY - r.top) / r.height * N);
+  if (u < 0 || v < 0 || u >= N || v >= N) return;
+  const xm = (u + 0.5) / N * P.FOV - P.FOV / 2, ym = (v + 0.5) / N * P.FOV - P.FOV / 2;
+  const i = Math.floor((xm + PH_MM / 2) / PX), j = Math.floor((ym + PH_MM / 2) / PX);
+  const lab = (i >= 0 && j >= 0 && i < N && j < N) ? LABEL[j * N + i] : 0;
+  updateHoverText({ name: TISSUES[lab].name, val: lastDisp[v * N + u] });
+}
+function updateHoverText(h) {
+  const el = document.getElementById("ovBL");
+  const base = `W ${(win.W * 1000).toFixed(0)}  L ${(win.L * 1000).toFixed(0)}${win.auto ? " (auto)" : ""}`;
+  el.textContent = h ? `${h.name}\npixel ${(h.val * 1000).toFixed(0)}\n${base}` : base;
+}
+
+window.addEventListener("resize", () => drawPlots());
+document.querySelectorAll(".zoom").forEach(box => box.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const z = ZOOM[box.dataset.plot];
+  if (b.dataset.z === "out") z.k *= 1.6;
+  else if (b.dataset.z === "in") z.k /= 1.6;
+  else if (b.dataset.z === "full") { z.mode = "full"; z.k = 1; }
+  else { z.mode = "default"; z.k = 1; }
+  drawPlots();
+}));
+for (const [id, which] of [["plotMz", "mz"], ["plotMxy", "mxy"]]) {
+  const c = document.getElementById(id);
+  const tAt = e => { const r = c.getBoundingClientRect(), gm = c._geom; return gm ? (e.clientX - r.left - gm.m.l) / gm.pw * c._opt.xmax : null; };
+  c.addEventListener("wheel", e => {
+    e.preventDefault();
+    ZOOM[which].k *= Math.exp(e.deltaY * 0.0015);
+    drawPlots(); if (c._opt) plot(c, c._opt, tAt(e));
+  }, { passive: false });
+  c.addEventListener("pointermove", e => { if (c._opt) plot(c, c._opt, tAt(e)); });
+  c.addEventListener("pointerleave", () => { if (c._opt) plot(c, c._opt); });
+  // two-finger pinch to zoom on touch screens
+  const pts = new Map(); let pinch0 = null;
+  c.addEventListener("pointerdown", e => { pts.set(e.pointerId, e.clientX); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = { d: Math.abs(a - b), k: ZOOM[which].k }; } });
+  c.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, e.clientX);
+    if (pts.size === 2 && pinch0 && pinch0.d > 10) { const [a, b] = [...pts.values()]; ZOOM[which].k = pinch0.k * pinch0.d / Math.max(10, Math.abs(a - b)); drawPlots(); }
+  });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null; };
+  c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
+}
+
+
+/* ============================================================
+   Quiz mode
+   ============================================================ */
+const Q = { on: false, cat: "mixed", cur: null, correct: 0, total: 0, streak: 0, saved: null, chalIdx: -1, physIdx: [], last: null };
+const rint = (a, b, step = 1) => Math.round((a + Math.random() * (b - a)) / step) * step;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const r10 = v => Math.round(v / 10) * 10;
+function t1Of(key, f) { return TISSUES[T[key]].t1[f === "3" ? 1 : 0]; }
+function nullFor(key, f, TR) { const T1 = t1Of(key, f); return T1 * Math.log(2 / (1 + Math.exp(-TR / T1))); }
+function ernstFor(TR, T1) { return Math.acos(Math.exp(-TR / T1)) * 180 / Math.PI; }
+function michelson(a, b) { a = Math.abs(a); b = Math.abs(b); return (a - b) / (a + b + 1e-9); }
+
+function applyState(st) {
+  const pathBefore = P.path, zBefore = P.Z, thkBefore = P.THK;
+  Object.assign(P, JSON.parse(JSON.stringify(P_DEFAULT)), st);
+  if (typeof st.TI === "string") P.TI = r10(nullTI(st.TI));
+  SPIKES.length = 0;
+  win.auto = true; document.getElementById("lockwin").checked = false;
+  if (P.path !== pathBefore || P.Z !== zBefore || P.THK !== thkBefore) rebuildPhantom();
+  changed();
+}
+function headExtent() {
+  // extent (mm) of non-air tissue in the current slice, along columns (x) and rows (y)
+  let x0 = N, x1 = -1, y0 = N, y1 = -1;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i; let sum = 0;
+    for (let t = 1; t < NT; t++) sum += FRAC[t][k];
+    if (sum > 0.15) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
+  }
+  return { lr: (x1 - x0 + 1) * PX, ap: (y1 - y0 + 1) * PX };
+}
+
+/* ---------- 1. Name the sequence ---------- */
+const NAME_CHOICES = ["T1-weighted", "T2-weighted", "Proton density", "FLAIR", "STIR", "T2*-weighted GRE"];
+const NAME_PROTOCOLS = [
+  { ans: "T1-weighted", st: () => ({ seq: "SE", TR: rint(400, 650, 10), TE: rint(10, 20) }),
+    clue: "CSF is dark, white matter is brighter than gray matter, and scalp fat is bright. That pattern means short TR and short TE." },
+  { ans: "T1-weighted", st: () => ({ seq: "GRE", TR: rint(150, 250, 10), TE: rint(3, 5), FA: rint(60, 80) }),
+    clue: "CSF is dark and white matter is brighter than gray matter, so it's T1-weighted. This one was a spoiled gradient echo with a large flip angle, which gives T1 weighting at very short TR." },
+  { ans: "T2-weighted", st: () => ({ seq: "FSE", TR: rint(3500, 5500, 100), TE: rint(90, 120), ETL: rint(12, 20) }),
+    clue: "CSF is bright and white matter is darker than gray matter, which means long TR and long TE. Scalp fat stays fairly bright because of the FSE readout (J-coupling)." },
+  { ans: "Proton density", st: () => ({ seq: "FSE", TR: rint(2500, 4000, 100), TE: rint(15, 30), ETL: rint(6, 10) }),
+    clue: "Contrast is low overall: gray matter is only slightly brighter than white matter, and CSF is intermediate, neither black nor very bright. That means long TR with short TE, so signal mostly reflects hydrogen content." },
+  { ans: "FLAIR", st: () => ({ seq: "IR", TR: 9000, TE: rint(110, 140), ETL: 24, TI: "csf" }),
+    clue: "The contrast is T2-like (gray matter brighter than white matter, lesions bright), but CSF is black. That's an inversion pulse timed to null CSF." },
+  { ans: "STIR", st: () => ({ seq: "IR", TR: rint(3500, 5000, 100), TE: rint(40, 70), ETL: 12, TI: "fat" }),
+    clue: "Scalp and marrow fat are black while fluid is bright. A short TI nulls fat because fat has the shortest T1." },
+  { ans: "T2*-weighted GRE", st: () => ({ seq: "GRE", TR: rint(500, 800, 10), TE: rint(15, 25), FA: rint(15, 25) }),
+    clue: "CSF is bright like on a T2, but fat is much darker than on a T2 FSE (fat's T2* is short, and GRE doesn't get the FSE fat-brightening effect), and the image is noisier. That means a small flip angle and long TE with no refocusing pulse." },
+];
+function makeNameQuestion() {
+  let pr; do { pr = pick(NAME_PROTOCOLS); } while (NAME_PROTOCOLS.length > 1 && pr === Q.last);
+  Q.last = pr;
+  const st = pr.st();
+  st.field = pick(["1.5", "3"]);
+  st.Z = pr.ans === "STIR" && Math.random() < 0.5 ? pick([-36, -30]) : pick([0, 6, 12, 18, 24, 30]);
+  const r = Math.random();
+  st.path = r < 0.25 ? "ms" : r < 0.4 && st.Z >= 12 ? "tumor" : "none";
+  if (st.path === "ms" && st.Z < 12) st.Z = pick([18, 24, 30]);
+  const opts = shuffle([pr.ans, ...shuffle(NAME_CHOICES.filter(c => c !== pr.ans)).slice(0, 3)]);
+  return {
+    type: "name", state: st,
+    text: "<small>Name the sequence</small>What kind of image is this?",
+    opts, correct: opts.indexOf(pr.ans),
+    explain: () => {
+      let par = `${P.field} T ${P.seq}, TR ${P.TR}, TE ${P.TE}`;
+      if (P.seq === "IR") par += `, TI ${P.TI}`;
+      if (P.seq === "GRE") par += `, flip angle ${P.FA}°`;
+      return `${pr.clue}<br><span style="color:var(--text-muted)">Actual parameters: ${par}.</span>`;
+    },
+  };
+}
+
+/* ---------- 2. Challenges ---------- */
+const CHALLENGES = [
+  { title: "Null CSF at 3T",
+    st: { field: "3", seq: "IR", TR: 9000, TE: 120, ETL: 24, TI: 1200 },
+    goal: "This FLAIR has the wrong inversion time, so CSF isn't dark. Adjust TI until CSF is black. The Null buttons are hidden.",
+    checks: [
+      ["CSF signal below 5% of gray matter", (s) => Math.abs(s[T.csf]) < 0.05 * Math.abs(s[T.gm]), (s) => `CSF ${(100 * Math.abs(s[T.csf]) / Math.abs(s[T.gm])).toFixed(0)}% of GM`],
+      ["Keep T2 weighting (TE ≥ 80 ms)", () => P.TE >= 80, () => `TE ${P.TE}`],
+      ["Stay on inversion recovery at 3T", () => P.seq === "IR" && P.field === "3"],
+    ],
+    sol: () => ({ TI: r10(nullFor("csf", "3", P.TR)) }),
+    explain: () => `The null point is TI = T1 · ln(2 / (1 + e<sup>−TR/T1</sup>)). With CSF T1 ≈ ${t1Of("csf", "3")} ms at 3T and TR ${P.TR}, that gives ≈ ${Math.round(nullFor("csf", "3", P.TR))} ms. At 1.5T it would be ≈ ${Math.round(nullFor("csf", "1.5", P.TR))} ms, because T1 gets longer as field strength increases.` },
+  { title: "Fix the wraparound",
+    st: { seq: "FSE", TR: 4000, TE: 100, ETL: 16, FOV: 180, pdir: "AP", Z: 12 },
+    goal: "The anterior and posterior parts of the head are wrapping into the image. Remove the wraparound without making the FOV larger than 190 mm.",
+    checks: [
+      ["Head fits inside the FOV along the phase direction", () => { const e = headExtent(); return (P.pdir === "AP" ? e.ap : e.lr) <= P.FOV + 1; }, () => { const e = headExtent(); return `head ${Math.round(P.pdir === "AP" ? e.ap : e.lr)} mm along phase · FOV ${P.FOV}`; }],
+      ["FOV no larger than 190 mm", () => P.FOV <= 190, () => `FOV ${P.FOV}`],
+      ["No skipped phase lines", () => P.kacq !== "r2"],
+    ],
+    sol: () => ({ pdir: "LR" }),
+    explain: () => "Wraparound happens only along the phase-encoding direction. Along the frequency direction, scanners oversample and filter out signal from outside the FOV. Switching the phase direction to the head's narrower axis (right–left) removes the wrap without changing FOV. Phase oversampling (no phase wrap) would also work, at the cost of scan time." },
+  { title: "T2 in under a minute",
+    st: { seq: "FSE", TR: 4000, TE: 100, ETL: 8, NEX: 2 },
+    goal: "Make a T2-weighted FSE image that takes 1:00 or less and still has relative SNR of at least 0.8.",
+    checks: [
+      ["T2-weighted (TR ≥ 2500 ms, TE ≥ 80 ms, spin echo)", () => (P.seq === "FSE" || P.seq === "SE") && P.TR >= 2500 && P.TE >= 80, () => `TR ${P.TR} · TE ${P.TE}`],
+      ["Scan time ≤ 1:00", () => scanTimeSec() <= 60.5, () => fmtTime(scanTimeSec())],
+      ["Relative SNR ≥ 0.8", () => snrRel() >= 0.8, () => snrRel().toFixed(2) + "×"],
+    ],
+    sol: () => ({ NEX: 1, ETL: 20 }),
+    explain: () => "Scan time = TR × phase steps × NEX ÷ ETL. Dropping NEX from 2 to 1 halves the time but costs √2 in SNR. A longer echo train then gets you under a minute with no SNR penalty in this model. Real FSE trades a long ETL for blurring and less T2 contrast per line. Reducing the phase matrix or using partial Fourier would also work." },
+  { title: "Tame the chemical shift at 3T",
+    st: { field: "3", seq: "FSE", TR: 4000, TE: 100, ETL: 16, BW: 16 },
+    goal: "Fat is shifted by several pixels along the frequency direction, which shows as a dark and bright band at the skull and scalp. Reduce the shift to under 1.5 pixels while keeping relative SNR ≥ 1.2, without using fat saturation.",
+    checks: [
+      ["Fat shift < 1.5 pixels", () => fatShiftPx() < 1.5, () => fatShiftPx().toFixed(2) + " px"],
+      ["Relative SNR ≥ 1.2", () => snrRel() >= 1.2, () => snrRel().toFixed(2) + "×"],
+      ["No fat saturation", () => !P.fatsat],
+    ],
+    sol: () => ({ BW: 80 }),
+    explain: () => `The fat–water difference is 3.5 ppm, which is ≈ ${Math.round(3.5e-6 * 42.577e6 * 3)} Hz at 3T. Shift in pixels = that frequency ÷ (bandwidth per pixel). Widening the receiver bandwidth to about ±40 kHz brings it under 1.5 px. SNR falls with √(1/bandwidth), but 3T has SNR to spare.` },
+  { title: "Find the Ernst angle",
+    st: { seq: "GRE", TR: 30, TE: 4, FA: 70, field: "1.5" },
+    goal: "In this fast gradient echo (TR 30 ms), make white matter as bright as possible by choosing the flip angle. The Ernst button is hidden. Use the WM row in the signal table.",
+    checks: [
+      ["Flip angle within 2° of the Ernst angle for WM", () => Math.abs(P.FA - ernstFor(P.TR, t1Of("wm", P.field))) <= 2, () => `FA ${P.FA}°`],
+      ["Keep TR at 30 ms or less", () => P.TR <= 30, () => `TR ${P.TR}`],
+    ],
+    sol: () => ({ FA: Math.round(ernstFor(P.TR, t1Of("wm", P.field))) }),
+    explain: () => `The Ernst angle, arccos(e<sup>−TR/T1</sup>), maximizes steady-state signal. For WM (T1 ≈ ${t1Of("wm", P.field)} ms) at TR ${P.TR} ms it's ≈ ${ernstFor(P.TR, t1Of("wm", P.field)).toFixed(1)}°. At short TR, large flip angles saturate the tissue and give less signal, not more.` },
+  { title: "Fat suppression after gadolinium",
+    st: { path: "tumor", gd: true, seq: "SE", TR: 500, TE: 15, Z: 22 },
+    goal: "This is a post-contrast T1. Suppress the scalp fat while keeping the enhancing tumor rim bright, at least 30% brighter than white matter.",
+    checks: [
+      ["Fat signal < 25% of the enhancing rim", (s) => Math.abs(s[T.fat]) < 0.25 * Math.abs(s[T.rim]), (s) => `fat ${(100 * Math.abs(s[T.fat]) / Math.abs(s[T.rim])).toFixed(0)}% of rim`],
+      ["Rim ≥ 1.3 × white matter", (s) => Math.abs(s[T.rim]) >= 1.3 * Math.abs(s[T.wm]), (s) => `${(Math.abs(s[T.rim]) / Math.abs(s[T.wm])).toFixed(2)}×`],
+      ["Gadolinium still given", () => P.gd],
+    ],
+    sol: () => ({ fatsat: true }),
+    explain: () => "Use chemical (spectral) fat saturation, which targets fat's resonance frequency. STIR is a trap here: it nulls anything with a T1 near fat's, and gadolinium shortens the tumor rim's T1 to ≈ 350 ms, so STIR suppresses the enhancement too. That's why STIR shouldn't be used after contrast." },
+  { title: "Gray–white contrast at 3T",
+    st: { field: "3", seq: "SE", TR: 500, TE: 15 },
+    goal: "T1 differences between tissues shrink at 3T, so this spin-echo T1 has weak gray–white contrast. Get white matter brighter than gray matter with a Michelson contrast of at least 0.20.",
+    checks: [
+      ["WM brighter than GM, contrast ≥ 0.20", (s) => michelson(s[T.wm], s[T.gm]) >= 0.2, (s) => `contrast ${michelson(s[T.wm], s[T.gm]).toFixed(2)}`],
+      ["Stay at 3T", () => P.field === "3"],
+    ],
+    sol: () => ({ seq: "IR", TR: 2500, TE: 12, TI: 800, ETL: 16 }),
+    explain: () => "Inversion recovery doubles the T1 dynamic range because tissues recover from −Mz instead of 0. A TI between the WM and GM null points (≈ 800 ms) gives strong gray–white contrast. This is the principle behind MPRAGE, the standard 3D T1 at 3T. Phase-sensitive reconstruction would show the sign as well." },
+  { title: "Null white matter",
+    st: { field: "1.5", seq: "IR", TR: 3000, TE: 15, TI: 900 },
+    goal: "Make white matter black so gray matter structures (cortex, deep nuclei) stand out. This is used for cortical malformations and for deep brain stimulation (DBS) targeting.",
+    checks: [
+      ["WM signal below 5% of gray matter", (s) => Math.abs(s[T.wm]) < 0.05 * Math.abs(s[T.gm]), (s) => `WM ${(100 * Math.abs(s[T.wm]) / Math.abs(s[T.gm])).toFixed(0)}% of GM`],
+      ["Inversion recovery", () => P.seq === "IR"],
+    ],
+    sol: () => ({ TI: r10(nullFor("wm", P.field, P.TR)) }),
+    explain: () => `WM has a short T1 (≈ ${t1Of("wm", P.field)} ms at ${P.field} T), so it nulls at TI ≈ ${Math.round(nullFor("wm", P.field, P.TR))} ms with TR ${P.TR}. At that moment gray matter is still slightly negative, and magnitude reconstruction shows it as gray.` },
+];
+function makeChallenge() {
+  Q.chalIdx = (Q.chalIdx + 1) % CHALLENGES.length;
+  const c = CHALLENGES[Q.chalIdx];
+  return { type: "chal", c, state: c.st, text: `<small>Challenge ${Q.chalIdx + 1} of ${CHALLENGES.length} · ${c.title}</small>${c.goal}` };
+}
+
+/* ---------- 3. Physics questions ---------- */
+const PHYS = [
+  () => ({ q: "You double NEX from 1 to 2 and change nothing else. What happens?",
+    a: ["SNR ×1.41, scan time ×2", "SNR ×2, scan time ×2", "SNR ×1.41, scan time unchanged", "SNR ×2, scan time ×1.41"],
+    why: "Averaging N acquisitions adds signal N times but noise only √N times, so SNR ∝ √NEX. Every average repeats every phase-encode line, so time doubles." }),
+  () => ({ q: "Phase matrix goes from 256 to 128, with the same FOV. What happens to scan time and SNR?",
+    a: ["Time ×0.5, SNR ×1.41", "Time ×0.5, SNR ×0.71", "Time ×0.5, SNR ×2", "Time unchanged, SNR ×2"],
+    why: "Half the phase steps halves the time. Each voxel is twice as large (SNR ×2), but there are half as many measurements averaged into the image (×1/√2), so the net change is ×√2 ≈ 1.41, at the cost of resolution." }),
+  () => ({ q: "You halve the slice thickness from 5 mm to 2.5 mm. What happens to SNR?",
+    a: ["×0.5", "×0.71", "×2", "No change"],
+    why: "SNR is proportional to voxel volume, so half the thickness means half the signal-producing protons per voxel." }),
+  () => ({ q: "You double the receiver bandwidth. What happens?",
+    a: ["SNR ×0.71, chemical shift halved", "SNR ×1.41, chemical shift halved", "SNR ×0.71, chemical shift doubled", "SNR ×0.5, chemical shift halved"],
+    why: "Wider bandwidth lets in more noise (SNR ∝ 1/√BW), but each pixel spans more Hz, so fat's fixed frequency offset covers fewer pixels. A shorter readout also allows shorter TE and more slices." }),
+  () => ({ q: "You halve the FOV in both directions and keep the matrix the same. What happens to SNR?",
+    a: ["×0.25", "×0.5", "×0.71", "No change"],
+    why: "Each voxel is half as wide in both directions, so it has ¼ the volume and ¼ the SNR. Small FOVs need surface coils or more averages." }),
+  () => { const f = pick(["1.5", "3"]), TR = pick([3000, 3500, 4000, 5000]);
+    const v = [nullFor("fat", f, TR), nullFor("wm", f, TR), nullFor("csf", f, TR), t1Of("fat", f)].map(x => Math.round(x / 5) * 5);
+    return { q: `Which TI nulls fat for a STIR at ${f} T with TR ${TR} ms?`, a: v.map(x => x + " ms"),
+      why: `Fat's T1 is ≈ ${t1Of("fat", f)} ms at ${f} T. The null point is TI = T1 · ln(2 / (1 + e<sup>−TR/T1</sup>)), which is ≈ 0.69 × T1 when TR ≫ T1. The distractors are the WM and CSF null points and fat's raw T1.` }; },
+  () => { const TR = pick([8000, 9000, 10000]);
+    const v = [nullFor("csf", "3", TR), nullFor("csf", "1.5", TR), nullFor("gm", "3", TR), t1Of("csf", "3")].map(x => Math.round(x / 10) * 10);
+    return { q: `Approximately which TI nulls CSF for FLAIR at 3T with TR ${TR} ms?`, a: v.map(x => x + " ms"),
+      why: `CSF T1 ≈ ${t1Of("csf", "3")} ms at 3T, but TR isn't infinitely long compared with T1, so the null point is T1 · ln(2 / (1 + e<sup>−TR/T1</sup>)) rather than 0.69 × T1. ${v[1]} ms is the 1.5T answer.` }; },
+  () => { const TR = pick([20, 30, 50, 80]), e = ernstFor(TR, 600);
+    const v = [Math.round(e), 90, Math.round(Math.min(85, e * 2.2)), Math.max(2, Math.round(e / 3))];
+    return { q: `For a spoiled GRE with TR ${TR} ms at 1.5T, which flip angle gives the most white matter signal (WM T1 ≈ 600 ms)?`, a: v.map(x => x + "°"),
+      why: `The Ernst angle is arccos(e<sup>−TR/T1</sup>) = arccos(e<sup>−${TR}/600</sup>) ≈ ${e.toFixed(1)}°. With short TR, a 90° pulse would saturate the tissue.` }; },
+  () => ({ q: "Which part of k-space mostly determines image contrast and overall signal?",
+    a: ["The center (low spatial frequencies)", "The periphery (high spatial frequencies)", "Only the kx = 0 line", "All k-space points contribute equally to contrast"],
+    why: "The central lines carry the large-scale intensity information. The periphery carries edges and fine detail. This is why FSE's effective TE is set by when the central lines are acquired. Try it with Reconstruct from Center or Edges in the k-space panel." }),
+  () => ({ q: "Along which direction does wraparound (aliasing) normally appear?",
+    a: ["Phase-encoding", "Frequency-encoding", "Slice-select", "Equally in every direction"],
+    why: "In the frequency direction, scanners oversample and use an anti-aliasing filter. In the phase direction, anything outside the FOV gets the same phase as something inside it and folds in, unless phase oversampling is used." }),
+  () => ({ q: "Along which direction does the chemical shift misregistration artifact appear?",
+    a: ["Frequency-encoding", "Phase-encoding", "Slice-select only", "Along whichever axis is longest"],
+    why: "Position along the frequency axis is encoded as frequency, so fat's 3.5 ppm offset gets mapped to the wrong position. Its size grows with field strength and shrinks with bandwidth per pixel." }),
+  () => ({ q: "Why does a gradient echo show T2* rather than T2 decay?",
+    a: ["It has no 180° refocusing pulse to cancel static field inhomogeneity", "Its flip angle is smaller than 90°", "Its TR is shorter", "It uses a wider receiver bandwidth"],
+    why: "A spin echo's 180° pulse reverses dephasing caused by static field inhomogeneity. A gradient echo only reverses the gradient's own dephasing, so local field variations (from iron, blood products, calcium or air–bone interfaces) remain. That's why GRE and SWI are sensitive to hemorrhage." }),
+  () => ({ q: "Why should STIR not be used after gadolinium?",
+    a: ["It nulls anything with a T1 like fat's, including enhancing tissue", "Gadolinium is destroyed by the inversion pulse", "STIR cannot be combined with spin echo", "It only works at 1.5T"],
+    why: "STIR is T1-selective, not fat-selective. Gadolinium shortens enhancing tissue's T1 toward fat's, so it gets suppressed too. Use chemical fat saturation instead. Challenge 6 demonstrates this." }),
+  () => ({ q: "In a spin-echo T1 sequence, you increase TR from 500 to 1500 ms. What happens?",
+    a: ["Less T1 weighting, more SNR, longer scan", "More T1 weighting, more SNR, longer scan", "Less T1 weighting, less SNR, shorter scan", "No change in contrast, longer scan"],
+    why: "With a longer TR, all tissues recover more fully, so T1 differences shrink, signal rises, and time scales with TR." }),
+  () => ({ q: "In an FSE with the same TR, you increase the echo train length from 8 to 16. How does scan time change?",
+    a: ["Halves", "Doubles", "No change", "Drops by √2"],
+    why: "Each TR now fills 16 k-space lines instead of 8. The costs are blurring from T2 decay across the echo train, fewer slices per TR, and brighter fat." }),
+  () => ({ q: "Going from 1.5T to 3T, which of these is generally true?",
+    a: ["SNR roughly doubles, T1 values lengthen, chemical shift in Hz doubles", "SNR doubles and T1 values shorten", "SNR is unchanged but scans are faster", "Chemical shift in Hz is unchanged"],
+    why: "Signal scales roughly with B0. Most tissue T1s get longer (which reduces T1 contrast; see challenge 7), T2s change little, and the fat–water frequency difference scales with field: ≈224 Hz at 1.5T vs ≈447 Hz at 3T." }),
+];
+function makePhys() {
+  if (!Q.physIdx.length) Q.physIdx = shuffle(PHYS.map((_, i) => i));
+  const g = PHYS[Q.physIdx.pop()]();
+  const order = shuffle(g.a.map((_, i) => i));
+  return { type: "phys", text: `<small>Physics</small>${g.q}`, opts: order.map(i => g.a[i]), correct: order.indexOf(0), explain: () => g.why };
+}
+
+/* ---------- engine ---------- */
+function updateScore() {
+  document.getElementById("qScore").textContent = `Score ${Q.correct} / ${Q.total}${Q.streak > 1 ? ` · streak ${Q.streak}` : ""}`;
+}
+function setHide(name, chal) {
+  document.body.classList.toggle("qhide", !!name);
+  document.body.classList.toggle("qchal", !!chal);
+}
+function feedback(html, good) {
+  const fb = document.getElementById("qFeedback");
+  fb.innerHTML = (good === true ? '<b class="good">Correct.</b> ' : good === false ? '<b class="bad">Not quite.</b> ' : "") + html;
+  fb.classList.add("show");
+}
+function nextQuestion() {
+  const cat = Q.cat === "mixed" ? pick(["name", "name", "chal", "phys", "phys"]) : Q.cat;
+  const q = cat === "name" ? makeNameQuestion() : cat === "chal" ? makeChallenge() : makePhys();
+  Q.cur = q; q.done = false;
+  document.getElementById("qText").innerHTML = q.text;
+  document.getElementById("qFeedback").className = "";
+  document.getElementById("qFeedback").innerHTML = "";
+  const body = document.getElementById("qBody");
+  body.innerHTML = "";
+  document.getElementById("qSolve").style.display = q.type === "chal" ? "" : "none";
+  setHide(q.type === "name", q.type === "chal");
+  if (q.type === "chal") {
+    const ul = document.createElement("ul"); ul.className = "qchecks"; ul.id = "qChecks";
+    q.c.checks.forEach(ch => { const li = document.createElement("li"); li.innerHTML = `<span>${ch[0]}</span><span class="now"></span>`; ul.appendChild(li); });
+    body.appendChild(ul);
+  } else {
+    const box = document.createElement("div"); box.className = "qopts";
+    q.opts.forEach((o, i) => {
+      const b = document.createElement("button"); b.textContent = o;
+      b.addEventListener("click", () => answer(i));
+      box.appendChild(b);
+    });
+    body.appendChild(box);
+  }
+  if (q.state) applyState(q.state);
+  else if (q.type === "phys") { setHide(false, false); schedule(); }
+}
+function answer(i) {
+  const q = Q.cur; if (!q || q.done) return;
+  q.done = true;
+  const btns = document.querySelectorAll("#qBody .qopts button");
+  btns.forEach((b, j) => { b.disabled = true; if (j === q.correct) b.classList.add("right"); else if (j === i) b.classList.add("wrong"); });
+  const ok = i === q.correct;
+  Q.total++; if (ok) { Q.correct++; Q.streak++; } else Q.streak = 0;
+  updateScore();
+  setHide(false, false);
+  syncUI(); schedule();
+  feedback(q.explain(), ok);
+}
+function quizOnRender(sig) {
+  const q = Q.cur;
+  if (!Q.on || !q || q.type !== "chal") return;
+  const lis = document.querySelectorAll("#qChecks li");
+  let all = true;
+  q.c.checks.forEach((ch, i) => {
+    const ok = !!ch[1](sig);
+    all = all && ok;
+    lis[i].classList.toggle("ok", ok);
+    lis[i].querySelector(".now").textContent = ch[2] ? ch[2](sig) : "";
+  });
+  if (all && !q.done) {
+    q.done = true;
+    if (!q.gaveUp) { Q.total++; Q.correct++; Q.streak++; updateScore(); feedback(q.c.explain(), true); }
+  }
+}
+document.getElementById("qNext").addEventListener("click", nextQuestion);
+document.getElementById("qSolve").addEventListener("click", () => {
+  const q = Q.cur; if (!q || q.type !== "chal") return;
+  if (!q.done && !q.gaveUp) { q.gaveUp = true; Q.total++; Q.streak = 0; updateScore(); }
+  Object.assign(P, q.c.sol()); win.auto = true; changed();
+  feedback("<b>Solution applied.</b> " + q.c.explain());
+});
+document.querySelectorAll("#qCat button").forEach(b => b.addEventListener("click", () => {
+  Q.cat = b.dataset.v;
+  document.querySelectorAll("#qCat button").forEach(x => x.classList.toggle("on", x === b));
+  if (Q.cat === "chal") Q.chalIdx = -1;
+  nextQuestion();
+}));
+document.getElementById("quizBtn").addEventListener("click", () => {
+  Q.on = !Q.on;
+  document.body.classList.toggle("quiz", Q.on);
+  document.getElementById("quizBtn").textContent = Q.on ? "Exit quiz" : "Quiz mode";
+  if (Q.on) {
+    Q.saved = JSON.parse(JSON.stringify(P));
+    updateScore();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    nextQuestion();
+  } else {
+    setHide(false, false);
+    Q.cur = null;
+    applyState(Q.saved || P_DEFAULT);
+  }
+});
+
+/* --- init --- */
+syncUI();
+loadAtlas().then(a => { ATLAS = a; }).catch(err => {
+  console.warn("Real anatomy unavailable, using the simple phantom:", err);
+  document.getElementById("sliceRow").classList.add("hidden");
+}).finally(() => {
+  rebuildPhantom();
+  document.getElementById("loading").classList.add("hidden");
+  changed();
+});
+</script>
+<script src="ctxr.js"></script>
+<script>
+document.querySelectorAll("#modality button").forEach(b => b.addEventListener("click", () => {
+  if (b.dataset.v !== "mri" && document.body.classList.contains("quiz")) document.getElementById("quizBtn").click();
+}));
+</script>
+</body>
+</html>

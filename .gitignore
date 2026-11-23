@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.DS_Store
+# raw source downloads used by tools/
+data_raw/

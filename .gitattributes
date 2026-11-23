@@ -1,0 +1,2 @@
+# Packed anatomy data (base64 of gzip): treat as binary so diffs stay readable
+*.b64.txt binary
